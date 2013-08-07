@@ -1,6 +1,5 @@
 from apnsclient import Session, Message, APNs
 from logging.config import fileConfig
-from maxclient import MaxClient
 
 import argparse
 import ConfigParser
@@ -187,30 +186,6 @@ class MAXPushConversationsConsumer(object):
         LOGGER.info('Channel opened')
         self._channel = channel
         self.add_on_channel_close_callback()
-        # self.setup_exchange(self.EXCHANGE)
-        self.setup_queue(self.QUEUE)
-
-    def setup_exchange(self, exchange_name):
-        """Setup the exchange on RabbitMQ by invoking the Exchange.Declare RPC
-        command. When it is complete, the on_exchange_declareok method will
-        be invoked by pika.
-
-        :param str|unicode exchange_name: The name of the exchange to declare
-
-        """
-        LOGGER.info('Declaring exchange %s', exchange_name)
-        self._channel.exchange_declare(self.on_exchange_declareok,
-                                       exchange_name,
-                                       self.EXCHANGE_TYPE)
-
-    def on_exchange_declareok(self, unused_frame):
-        """Invoked by pika when RabbitMQ has finished the Exchange.Declare RPC
-        command.
-
-        :param pika.Frame.Method unused_frame: Exchange.DeclareOk response frame
-
-        """
-        LOGGER.info('Exchange declared')
         self.setup_queue(self.QUEUE)
 
     def setup_queue(self, queue_name):
@@ -236,8 +211,6 @@ class MAXPushConversationsConsumer(object):
         """
         LOGGER.info('Queue %s declared ok' % self.QUEUE)
         self.start_consuming()
-        # self._channel.queue_bind(self.on_bindok, self.QUEUE,
-                                 # self.EXCHANGE, self.ROUTING_KEY)
 
     def add_on_cancel_callback(self):
         """Add a callback that will be invoked if RabbitMQ cancels the consumer
@@ -326,17 +299,6 @@ class MAXPushConversationsConsumer(object):
         self.add_on_cancel_callback()
         self._consumer_tag = self._channel.basic_consume(self.on_message,
                                                          self.QUEUE)
-
-    def on_bindok(self, unused_frame):
-        """Invoked by pika when the Queue.Bind method has completed. At this
-        point we will start consuming messages by calling start_consuming
-        which will invoke the needed RPC commands to start the process.
-
-        :param pika.frame.Method unused_frame: The Queue.BindOk response frame
-
-        """
-        LOGGER.info('Queue bound')
-        self.start_consuming()
 
     def close_channel(self):
         """Call to close the channel with RabbitMQ cleanly by issuing the
