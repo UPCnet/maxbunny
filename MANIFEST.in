@@ -1,0 +1,5 @@
+include *.rst
+
+recursive-include maxbunny *
+
+global-exclude *.pyc
