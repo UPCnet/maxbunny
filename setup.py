@@ -8,6 +8,7 @@ CHANGES = open(os.path.join(here, 'CHANGES.rst')).read()
 
 requires = [
     'pika',
+    'maxclient',
     'apns_client',
     'gcm-client'
 ]

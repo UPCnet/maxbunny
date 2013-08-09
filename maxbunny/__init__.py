@@ -3,6 +3,7 @@ from maxbunny.base import rabbitMQConsumer
 from maxbunny.push import processPushMessage
 from maxbunny.tweety import TweetyMessage
 from maxbunny.utils import setup_logging
+from maxclient import MaxClient
 
 import argparse
 import ConfigParser
@@ -31,6 +32,14 @@ class MAXRabbitConsumer(rabbitMQConsumer):
 
         self.load_settings()
         self.maxservers_settings = [maxserver for maxserver in self.config.sections() if maxserver.startswith('max_')]
+
+        # Instantiate a maxclient for each maxserver
+        self.maxclients = {}
+        for maxserver in self.maxservers_settings:
+            maxclient = MaxClient(url=self.config.get(maxserver, 'server'), oauth_server=self.config.get(maxserver, 'oauth_server'))
+            maxclient.setActor(self.restricted_username)
+            maxclient.setToken(self.restricted_token)
+            self.maxclients[maxserver] = maxclient
 
     def on_channel_open(self, channel):
         LOGGER.info('Channel opened')

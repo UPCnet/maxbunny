@@ -1,6 +1,12 @@
+# -*- coding: utf-8 -*-
 from logging.config import fileConfig
 import ConfigParser
 import os
+import re
+
+UNICODE_ACCEPTED_CHARS = u'áéíóúàèìòùïöüçñ'
+
+FIND_HASHTAGS_REGEX = r'(\s|^)#{1}([\w\-\_\.%s]+)' % UNICODE_ACCEPTED_CHARS
 
 
 def _getpathsec(config_uri, name):
@@ -38,3 +44,18 @@ def oauth2Header(username, token, scope="widgetcli"):
         "X-Oauth-Token": token,
         "X-Oauth-Username": username,
         "X-Oauth-Scope": scope}
+
+
+def findHashtags(text):
+    """
+        Returns a list of valid #hastags in text
+        Narrative description of the search pattern will be something like:
+        "Any group of alphanumeric characters preceded by one (and only one) hash (#)
+         At the begginning of a string or before a whitespace"
+
+        teststring = "#first # Hello i'm a #text with #hashtags but#some are not valid#  # ##double #last"
+        should return ['first', 'text', 'hashtags', 'last']
+    """
+    hashtags = [a.groups()[1] for a in re.finditer(FIND_HASHTAGS_REGEX, text)]
+    lowercase = [hasht.lower() for hasht in hashtags]
+    return lowercase
