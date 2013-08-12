@@ -10,11 +10,6 @@ import json
 import unittest
 import os
 
-a = {
-    "token": "uj5v4XrWMxGP25CN3pAE39mYCL7cwBMV",
-    "username": "victor.fernandez"
-}
-
 
 class bunnyMock(object):
     def __init__(self):
