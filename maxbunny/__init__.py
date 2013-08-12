@@ -1,6 +1,6 @@
 from apnsclient import Session
 from maxbunny.base import rabbitMQConsumer
-from maxbunny.push import processPushMessage
+from maxbunny.push import PushMessage
 from maxbunny.tweety import TweetyMessage
 from maxbunny.utils import setup_logging
 from maxclient import MaxClient
@@ -77,7 +77,7 @@ class MAXRabbitConsumer(rabbitMQConsumer):
         LOGGER.info('Received push message # %s from %s: %s',
                     basic_deliver.delivery_tag, properties.app_id, body)
 
-        processPushMessage(self, body)
+        PushMessage(self, body).process()
 
         self.acknowledge_message(basic_deliver.delivery_tag)
 

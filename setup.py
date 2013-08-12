@@ -32,6 +32,9 @@ setup(name='maxbunny',
       zip_safe=False,
       install_requires=requires,
       tests_require=requires,
+      extras_require={
+          'test': ['HTTPretty']
+      },
       test_suite="maxbunny",
       entry_points="""\
       [console_scripts]

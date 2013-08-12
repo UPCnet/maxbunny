@@ -82,25 +82,37 @@ class TweetyMessage(object):
         """ Post message to the context of each MAX (ideally only one context in
             one MAX)
         """
+        return_messages = []
         for context in context_assigned:
             success, code, response = self.bunny.maxclients[context.get('maxserver')].add_activity_as_context(self.message.get('message'), context.get('url'), generator=GENERATOR_ID)
             if code == 201:
-                LOGGER.info(u"(201) Successfully posted tweet {} from {} as context {}".format(self.message.get('stid'), self.author, context.get('url')))
+                return_message = u"(201) Successfully posted tweet {} from {} as context {}".format(self.message.get('stid'), self.author, context.get('url'))
+                return_messages.append(return_message)
+                LOGGER.info(return_message)
             else:  # pragma: no cover
-                # 500: Error accessing the MAX API
-                LOGGER.error(u"({}) {} - {}".format(code, context.get('maxserver'), response))
+                return_message = u"({}) Error posting tweet as context {} of {} server - {}".format(code, context.get('url'), context.get('maxserver'), response)
+                return_messages.append(return_message)
+                LOGGER.error(return_message)
+
+        return return_messages
 
     def post_message_to_max(self, context_assigned, username):
         """ Post message to the context of each MAX (ideally only one context in
             one MAX)
         """
+        return_messages = []
         for context in context_assigned:
-            success, code, response = self.bunny.maxclients[context.get('maxserver')].addActivity(self.message.get('message'), [context.get('url')], generator=GENERATOR_ID, username=username)
+            success, code, response = self.bunny.maxclients[context.get('maxserver')].addActivity(self.message.get('message'), contexts=[context.get('url')], generator=GENERATOR_ID, username=username)
             if code == 201:
-                LOGGER.info(u"(201) Successfully posted tweet {} from {} as context {}".format(self.message.get('stid'), self.author, context.get('url')))
+                return_message = u"(201) Successfully posted tweet {} from {} to context {}".format(self.message.get('stid'), self.author, context.get('url'))
+                return_messages.append(return_message)
+                LOGGER.info(return_message)
             else:  # pragma: no cover
-                # 500: Error accessing the MAX API
-                LOGGER.error(u"({}) {} - {}".format(code, context.get('maxserver'), response))
+                return_message = u"({}) Error posting tweet as user {} to context {} of server {} - {}".format(code, username, context.get('url'), context.get('maxserver'), response)
+                return_messages.append(return_message)
+                LOGGER.error(return_message)
+
+        return return_messages
 
     def process(self):
         LOGGER.info(u"(INFO) Processing tweet {} from {} with content: {}".format(self.message.get('stid'), self.message.get('author'), self.message.get('message')))
@@ -119,15 +131,16 @@ class TweetyMessage(object):
             if len(context_assigned) > 1:
                 LOGGER.warning(u"(WARNING) tweet {} from {} eligible context found in more than one context in the same max server.".format(self.message.get('stid'), self.message.get('author')))
 
-            self.post_message_to_max_as_context(context_assigned)
+            return self.post_message_to_max_as_context(context_assigned)
 
         # We have a tweet from a tracked hashtag
         else:
             # Check if twitter_username is registered for a valid MAX username
             # if not, discard it
             if self.author not in self.get_registered_twitter_usernames_by_name(self.users):
-                LOGGER.info(u"(404) Discarding tweet {} from {} : There's no MAX user with that twitter username.".format(self.message.get('stid'), self.author))
-                return
+                return_message = u"(404) Discarding tweet {} from {} : There's no MAX user with that twitter username.".format(self.message.get('stid'), self.author)
+                LOGGER.info(return_message)
+                return return_message
 
             # Parse text and determine its corresponding MAX server
             # ASSUMPTION:
@@ -139,6 +152,15 @@ class TweetyMessage(object):
                 if hashtag in self.global_hashtags:
                     maxserver = self.global_hashtags[hashtag]
                     message_hastags.remove(hashtag)
+
+            # ASSUMPTION:
+            # If the message only contains a global hashtag, then discard it
+            # until further notice. In the future, it will be posted as a
+            # 'timeline' message from the sender.
+            if len(message_hastags) == 0:
+                return_message = u"(501) tweet {} from {} has only one (global) hashtag.".format(self.message.get('stid'), self.message.get('author'))
+                LOGGER.warning(return_message)
+                return return_message
 
             registered_hashtags = self.get_all_contexts_by_hashtag(self.contexts)
 
@@ -154,5 +176,12 @@ class TweetyMessage(object):
             if len(context_assigned) > 1:
                 LOGGER.warning(u"(WARNING) tweet {} from {} eligible context found in more than one context in the same max server.".format(self.message.get('stid'), self.message.get('author')))
 
+            # If we can't find any registered hashtag for any of the message
+            # hashtags, then discard it
+            if len(context_assigned) == 0:
+                return_message = u"(404) Discarding tweet {} from {} with hashtag {} : There's no registered context with the supplied hashtag.".format(self.message.get('stid'), self.author, unicode(message_hastags))
+                LOGGER.info(return_message)
+                return return_message
+
             username = self.get_username_from_twitter_username(maxserver, self.author)
-            self.post_message_to_max(context_assigned, username)
+            return self.post_message_to_max(context_assigned, username)
