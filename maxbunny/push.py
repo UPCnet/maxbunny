@@ -30,8 +30,9 @@ class PushMessage(object):
             elif token.get('platform') == 'android':
                 atokens.append(token.get('token'))
 
-        self.send_ios_push_notifications(itokens, self.message.get('message'))
-        self.send_android_push_notifications(atokens)
+        if self.bunny.config.get('push', 'push_certificate_file'):
+            self.send_ios_push_notifications(itokens, self.message.get('message'))
+            self.send_android_push_notifications(atokens)
 
     def send_ios_push_notifications(self, tokens, message):
         con = self.bunny.ios_session.get_connection("push_production", cert_file=self.bunny.config.get('push', 'push_certificate_file'))
