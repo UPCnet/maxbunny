@@ -1,7 +1,7 @@
 import logging
 import pika
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger('bunny')
 
 
 class rabbitMQConsumer(object):

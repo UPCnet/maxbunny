@@ -12,7 +12,7 @@ import logging
 import os
 import sys
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger('bunny')
 
 
 class MAXRabbitConsumer(rabbitMQConsumer):
@@ -30,15 +30,15 @@ class MAXRabbitConsumer(rabbitMQConsumer):
         self.config = config
         self.ios_session = Session()
 
-        self.load_settings()
         self.maxservers_settings = [maxserver for maxserver in self.config.sections() if maxserver.startswith('max_')]
+        self.load_restricted_users()
 
         # Instantiate a maxclient for each maxserver
         self.maxclients = {}
         for maxserver in self.maxservers_settings:
             maxclient = MaxClient(url=self.config.get(maxserver, 'server'), oauth_server=self.config.get(maxserver, 'oauth_server'))
-            maxclient.setActor(self.restricted_username)
-            maxclient.setToken(self.restricted_token)
+            maxclient.setActor(self.restricted_users[maxserver]['username'])
+            maxclient.setToken(self.restricted_users[maxserver]['token'])
             self.maxclients[maxserver] = maxclient
 
     def on_channel_open(self, channel):
@@ -89,19 +89,22 @@ class MAXRabbitConsumer(rabbitMQConsumer):
 
         self.acknowledge_message(basic_deliver.delivery_tag)
 
-    def load_settings(self):
-        settings_file = '{}/.max_restricted'.format(self.config.get('max', 'config_directory'))
-        if os.path.exists(settings_file):
-            settings = json.loads(open(settings_file).read())
-        else:
-            settings = {}
+    def load_restricted_users(self):
+        self.restricted_users = {}
+        for max_settings in self.maxservers_settings:
+            settings_file = '{}/.max_restricted'.format(self.config.get(max_settings, 'config_directory'))
 
-        if 'token' not in settings or 'username' not in settings:
-            LOGGER.info("Unable to load MAX settings, please execute RabbitMQ init script.")
-            sys.exit(1)
+            if os.path.exists(settings_file):
+                settings = json.loads(open(settings_file).read())
+            else:
+                settings = {}
 
-        self.restricted_username = settings.get('username')
-        self.restricted_token = settings.get('token')
+            if 'token' not in settings or 'username' not in settings:
+                LOGGER.info("Unable to load MAX settings, please execute initialization script for MAX server {}.".format(self.config.get(max_settings, 'server')))
+                sys.exit(1)
+
+            self.restricted_users.setdefault(max_settings, {})['username'] = settings.get('username')
+            self.restricted_users.setdefault(max_settings, {})['token'] = settings.get('token')
 
 
 def main(argv=sys.argv, quiet=False):  # pragma: no cover
