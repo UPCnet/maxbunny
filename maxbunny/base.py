@@ -30,7 +30,7 @@ class rabbitMQConsumer(object):
         self._channel = None
         self._closing = False
         self._consumer_tag = None
-        self._url = 'amqp://guest:guest@{}:5672/%2F'.format(config.get('rabbitmq', 'server'))
+        self._url = config.get('rabbitmq', 'server')
         self.config = config
         self.ios_session = Session()
 

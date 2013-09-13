@@ -26,7 +26,7 @@ class MAXRabbitConsumer(rabbitMQConsumer):
         self._closing = False
         self._push_consumer_tag = None
         self._tweety_consumer_tag = None
-        self._url = 'amqp://guest:guest@{}:5672/%2F'.format(config.get('rabbitmq', 'server'))
+        self._url = config.get('rabbitmq', 'server')
         self.config = config
         self.ios_session = Session()
 
@@ -36,7 +36,7 @@ class MAXRabbitConsumer(rabbitMQConsumer):
         # Instantiate a maxclient for each maxserver
         self.maxclients = {}
         for maxserver in self.maxservers_settings:
-            maxclient = MaxClient(url=self.config.get(maxserver, 'server'), oauth_server=self.config.get(maxserver, 'oauth_server'))
+            maxclient = MaxClient(url=self.config.get(maxserver, 'max_server'), oauth_server=self.config.get(maxserver, 'oauth_server'))
             maxclient.setActor(self.restricted_users[maxserver]['username'])
             maxclient.setToken(self.restricted_users[maxserver]['token'])
             self.maxclients[maxserver] = maxclient
@@ -100,7 +100,7 @@ class MAXRabbitConsumer(rabbitMQConsumer):
                 settings = {}
 
             if 'token' not in settings or 'username' not in settings:
-                LOGGER.info("Unable to load MAX settings, please execute initialization script for MAX server {}.".format(self.config.get(max_settings, 'server')))
+                LOGGER.info("Unable to load MAX settings, please execute initialization script for MAX server {}.".format(self.config.get(max_settings, 'max_server')))
                 sys.exit(1)
 
             self.restricted_users.setdefault(max_settings, {})['username'] = settings.get('username')
