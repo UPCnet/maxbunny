@@ -36,7 +36,7 @@ class MAXRabbitConsumer(rabbitMQConsumer):
         # Instantiate a maxclient for each maxserver
         self.maxclients = {}
         for maxserver in self.maxservers_settings:
-            maxclient = MaxClient(url=self.config.get(maxserver, 'max_server'), oauth_server=self.config.get(maxserver, 'oauth_server'))
+            maxclient = MaxClient(url=self.config.get(maxserver, 'server'), oauth_server=self.config.get(maxserver, 'oauth_server'))
             maxclient.setActor(self.restricted_users[maxserver]['username'])
             maxclient.setToken(self.restricted_users[maxserver]['token'])
             self.maxclients[maxserver] = maxclient
