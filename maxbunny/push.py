@@ -31,7 +31,12 @@ class PushMessage(object):
                 atokens.append(token.get('token'))
 
         if self.bunny.config.get('push', 'push_certificate_file'):
-            self.send_ios_push_notifications(itokens, self.message.get('message'))
+            try:
+                self.send_ios_push_notifications(itokens, self.message.get('message'))
+            except Exception, errmsg:
+                return_message = "Device push failed: {0}, reason: {1}".format(itokens, errmsg)
+                LOGGER.info(return_message)
+            
             self.send_android_push_notifications(atokens)
 
     def send_ios_push_notifications(self, tokens, message):
