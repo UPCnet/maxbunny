@@ -34,10 +34,15 @@ class PushMessage(object):
             try:
                 self.send_ios_push_notifications(itokens, self.message.get('message'))
             except Exception, errmsg:
-                return_message = "Device push failed: {0}, reason: {1}".format(itokens, errmsg)
+                return_message = "iOS device push failed: {0}, reason: {1}".format(itokens, errmsg)
                 LOGGER.info(return_message)
-            
-            self.send_android_push_notifications(atokens)
+
+        if self.bunny.config.get('push', 'android_push_api_key'):
+            try:
+                self.send_android_push_notifications(atokens, self.message.get('message'))
+            except Exception, errmsg:
+                return_message = "Android device push failed: {0}, reason: {1}".format(atokens, errmsg)
+                LOGGER.info(return_message)
 
     def send_ios_push_notifications(self, tokens, message):
         con = self.bunny.ios_session.get_connection("push_production", cert_file=self.bunny.config.get('push', 'push_certificate_file'))
