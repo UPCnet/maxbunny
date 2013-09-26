@@ -64,11 +64,11 @@ class PushMessage(object):
         LOGGER.info(return_message)
         return return_message
 
-    def send_android_push_notifications(self, tokens):
+    def send_android_push_notifications(self, tokens, message):
         gcm = GCM(self.bunny.config.get('push', 'android_push_api_key'))
 
         # Construct (key => scalar) payload. do not use nested structures.
-        data = {'str': 'string', 'int': 10}
+        data = {'str': message, 'int': 10}
 
         # Unicast or multicast message, read GCM manual about extra options.
         # It is probably a good idea to always use JSONMessage, even if you send
