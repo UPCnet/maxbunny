@@ -31,14 +31,14 @@ class PushMessage(object):
             elif token.get('platform') == 'android':
                 atokens.append(token.get('token'))
 
-        if self.bunny.config.get('push', 'push_certificate_file'):
+        if self.bunny.config.get('push', 'push_certificate_file') and itokens:
             try:
                 self.send_ios_push_notifications(itokens, self.message.get('message'))
             except Exception, errmsg:
                 return_message = "iOS device push failed: {0}, reason: {1}".format(itokens, errmsg)
                 LOGGER.info(return_message)
 
-        if self.bunny.config.get('push', 'android_push_api_key'):
+        if self.bunny.config.get('push', 'android_push_api_key') and atokens:
             try:
                 self.send_android_push_notifications(atokens, self.message.get('message'))
             except Exception, errmsg:
@@ -68,7 +68,7 @@ class PushMessage(object):
         gcm = GCM(self.bunny.config.get('push', 'android_push_api_key'))
 
         # Construct (key => scalar) payload. do not use nested structures.
-        data = {'str': message, 'int': 10}
+        data = {'message': message, 'int': 10}
 
         # Unicast or multicast message, read GCM manual about extra options.
         # It is probably a good idea to always use JSONMessage, even if you send
