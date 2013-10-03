@@ -5,7 +5,7 @@ import logging
 import json
 import requests
 
-LOGGER = logging.getLogger('tweety')
+LOGGER = logging.getLogger('twitterprocessor')
 GENERATOR_ID = 'Twitter'
 
 
@@ -21,22 +21,28 @@ class TweetyMessage(object):
         # Get a mapping for MAX server global hashtags
         self.global_hashtags = {}
         for maxserver in self.bunny.maxservers_settings:
-            self.global_hashtags[self.bunny.config.get(maxserver, 'hashtag')] = maxserver
+            self.global_hashtags[self.bunny.instances.get(maxserver, 'hashtag')] = maxserver
 
     def get_twitter_enabled_contexts(self):
         contexts = {}
         for max_settings in self.bunny.maxservers_settings:
-            max_url = self.bunny.config.get(max_settings, 'server')
-            req = requests.get('{}/contexts'.format(max_url), params={"twitter_enabled": True}, headers=oauth2Header(self.bunny.restricted_username, self.bunny.restricted_token))
-            contexts[max_settings] = req.json()
+            max_url = self.bunny.instances.get(max_settings, 'server')
+            max_username = self.bunny.instances.get(max_settings, 'restricted_user')
+            max_token = self.bunny.instances.get(max_settings, 'restricted_user_token')
+            req = requests.get('{}/contexts'.format(max_url), params={"twitter_enabled": True}, headers=oauth2Header(max_username, max_token))
+            if req.status_code == 200:
+                contexts[max_settings] = req.json()
         return contexts
 
     def get_twitter_enabled_users(self):
         users = {}
         for max_settings in self.bunny.maxservers_settings:
-            max_url = self.bunny.config.get(max_settings, 'server')
-            req = requests.get('{}/people'.format(max_url), params={"twitter_enabled": True}, headers=oauth2Header(self.bunny.restricted_username, self.bunny.restricted_token))
-            users[max_settings] = req.json()
+            max_url = self.bunny.instances.get(max_settings, 'server')
+            max_username = self.bunny.instances.get(max_settings, 'restricted_user')
+            max_token = self.bunny.instances.get(max_settings, 'restricted_user_token')
+            req = requests.get('{}/people'.format(max_url), params={"twitter_enabled": True}, headers=oauth2Header(max_username, max_token))
+            if req.status_code == 200:
+                users[max_settings] = req.json()
         return users
 
     def get_followed_users_by_name(self, contexts):

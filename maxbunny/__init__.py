@@ -26,19 +26,33 @@ class MAXRabbitConsumer(rabbitMQConsumer):
         self._closing = False
         self._push_consumer_tag = None
         self._tweety_consumer_tag = None
-        self._url = config.get('rabbitmq', 'server')
         self.config = config
+
+        common_config_file = self.config.get('main', 'common')
+        cloudapis_config_file = self.config.get('main', 'cloudapis')
+        instances_config_file = self.config.get('main', 'instances')
+
+        self.common = ConfigParser.ConfigParser()
+        self.common.read(common_config_file)
+
+        self.cloudapis = ConfigParser.ConfigParser()
+        self.cloudapis.read(cloudapis_config_file)
+
+        self.instances = ConfigParser.ConfigParser()
+        self.instances.read(instances_config_file)
+
+        self._url = self.common.get('rabbitmq', 'server')
+
         self.ios_session = Session()
 
-        self.maxservers_settings = [maxserver for maxserver in self.config.sections() if maxserver.startswith('max_')]
-        self.load_restricted_users()
+        self.maxservers_settings = [maxserver for maxserver in self.instances.sections() if maxserver.startswith('max_')]
 
         # Instantiate a maxclient for each maxserver
         self.maxclients = {}
         for maxserver in self.maxservers_settings:
-            maxclient = MaxClient(url=self.config.get(maxserver, 'server'), oauth_server=self.config.get(maxserver, 'oauth_server'))
-            maxclient.setActor(self.restricted_users[maxserver]['username'])
-            maxclient.setToken(self.restricted_users[maxserver]['token'])
+            maxclient = MaxClient(url=self.instances.get(maxserver, 'server'), oauth_server=self.instances.get(maxserver, 'oauth_server'))
+            maxclient.setActor(self.instances.get(maxserver, 'restricted_user'))
+            maxclient.setToken(self.instances.get(maxserver, 'restricted_user_token'))
             self.maxclients[maxserver] = maxclient
 
     def on_channel_open(self, channel):
@@ -50,10 +64,12 @@ class MAXRabbitConsumer(rabbitMQConsumer):
     def start_consuming(self):
         LOGGER.info('Issuing consumer related RPC commands')
         self.add_on_cancel_callback()
-        self._push_consumer_tag = self._channel.basic_consume(self.on_push_message,
-                                                         self.push_queue)
-        self._tweety_consumer_tag = self._channel.basic_consume(self.on_tweety_message,
-                                                         self.tweety_queue)
+        self._push_consumer_tag = self._channel.basic_consume(
+            self.on_push_message,
+            self.push_queue)
+        self._tweety_consumer_tag = self._channel.basic_consume(
+            self.on_tweety_message,
+            self.tweety_queue)
 
     def stop_consuming(self):
         if self._channel:
@@ -88,23 +104,6 @@ class MAXRabbitConsumer(rabbitMQConsumer):
         TweetyMessage(self, body).process()
 
         self.acknowledge_message(basic_deliver.delivery_tag)
-
-    def load_restricted_users(self):
-        self.restricted_users = {}
-        for max_settings in self.maxservers_settings:
-            settings_file = '{}/.max_restricted'.format(self.config.get(max_settings, 'config_directory'))
-
-            if os.path.exists(settings_file):
-                settings = json.loads(open(settings_file).read())
-            else:
-                settings = {}
-
-            if 'token' not in settings or 'username' not in settings:
-                LOGGER.info("Unable to load MAX settings, please execute initialization script for MAX server {}.".format(self.config.get(max_settings, 'max_server')))
-                sys.exit(1)
-
-            self.restricted_users.setdefault(max_settings, {})['username'] = settings.get('username')
-            self.restricted_users.setdefault(max_settings, {})['token'] = settings.get('token')
 
 
 def main(argv=sys.argv, quiet=False):  # pragma: no cover

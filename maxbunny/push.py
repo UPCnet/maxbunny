@@ -31,14 +31,14 @@ class PushMessage(object):
             elif token.get('platform') == 'android':
                 atokens.append(token.get('token'))
 
-        if self.bunny.config.get('push', 'push_certificate_file') and itokens:
+        if self.bunny.cloudapis.get('push', 'push_certificate_file') and itokens:
             try:
                 self.send_ios_push_notifications(itokens, self.message.get('message'))
             except Exception, errmsg:
                 return_message = "iOS device push failed: {0}, reason: {1}".format(itokens, errmsg)
                 LOGGER.info(return_message)
 
-        if self.bunny.config.get('push', 'android_push_api_key') and atokens:
+        if self.bunny.cloudapis.get('push', 'android_push_api_key') and atokens:
             try:
                 self.send_android_push_notifications(atokens, self.message.get('message'))
             except Exception, errmsg:
@@ -46,7 +46,7 @@ class PushMessage(object):
                 LOGGER.info(return_message)
 
     def send_ios_push_notifications(self, tokens, message):
-        con = self.bunny.ios_session.get_connection("push_production", cert_file=self.bunny.config.get('push', 'push_certificate_file'))
+        con = self.bunny.ios_session.get_connection("push_production", cert_file=self.bunny.cloudapis.get('push', 'push_certificate_file'))
         message = Message(tokens, alert=message, badge=1, sound='default')
 
         # Send the message.
@@ -65,7 +65,7 @@ class PushMessage(object):
         return return_message
 
     def send_android_push_notifications(self, tokens, message):
-        gcm = GCM(self.bunny.config.get('push', 'android_push_api_key'))
+        gcm = GCM(self.bunny.cloudapis.get('push', 'android_push_api_key'))
 
         # Construct (key => scalar) payload. do not use nested structures.
         data = {'message': message, 'int': 10}
