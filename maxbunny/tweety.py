@@ -153,6 +153,7 @@ class TweetyMessage(object):
             # It only uses the first candidate found and discard others so using
             # two global hashtags will work only for one of them so routing a
             # tweet to two different MAX servers simultaneously is not supported
+            maxserver = None
             message_hastags = findHashtags(self.message.get('message'))
             for hashtag in message_hastags:
                 if hashtag in self.global_hashtags:
@@ -176,18 +177,24 @@ class TweetyMessage(object):
                 if hashtag in registered_hashtags:
                     context_hashtags.append(hashtag)
 
-            context_assigned = self.get_context_by_hashtag(maxserver, context_hashtags)
+            # If we don't have any maxserver defined here, probably we're processing a tweet
+            # from a debug hashtag, so log it and don't try to add it
+            if maxserver is not None:
+                context_assigned = self.get_context_by_hashtag(maxserver, context_hashtags)
 
-            # Check if it's assigned to more than one context
-            if len(context_assigned) > 1:
-                LOGGER.warning(u"(WARNING) tweet {} from {} eligible context found in more than one context in the same max server.".format(self.message.get('stid'), self.message.get('author')))
+                # Check if it's assigned to more than one context
+                if len(context_assigned) > 1:
+                    LOGGER.warning(u"(WARNING) tweet {} from {} eligible context found in more than one context in the same max server.".format(self.message.get('stid'), self.message.get('author')))
 
-            # If we can't find any registered hashtag for any of the message
-            # hashtags, then discard it
-            if len(context_assigned) == 0:
-                return_message = u"(404) Discarding tweet {} from {} with hashtag {} : There's no registered context with the supplied hashtag.".format(self.message.get('stid'), self.author, unicode(message_hastags))
-                LOGGER.info(return_message)
-                return return_message
+                # If we can't find any registered hashtag for any of the message
+                # hashtags, then discard it
+                if len(context_assigned) == 0:
+                    return_message = u"(404) Discarding tweet {} from {} with hashtag {} : There's no registered context with the supplied hashtag.".format(self.message.get('stid'), self.author, unicode(message_hastags))
+                    LOGGER.info(return_message)
+                    return return_message
 
-            username = self.get_username_from_twitter_username(maxserver, self.author)
-            return self.post_message_to_max(context_assigned, username)
+                username = self.get_username_from_twitter_username(maxserver, self.author)
+                return self.post_message_to_max(context_assigned, username)
+            else:
+                LOGGER.warning(u"(600) Discarding tweet {} from {} with unknown (probably debug) global hashtag found in [{}]".format(self.message.get('stid'), self.author, ', '.join(message_hastags)))
+
