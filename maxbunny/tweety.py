@@ -29,7 +29,7 @@ class TweetyMessage(object):
             max_url = self.bunny.instances.get(max_settings, 'server')
             max_username = self.bunny.instances.get(max_settings, 'restricted_user')
             max_token = self.bunny.instances.get(max_settings, 'restricted_user_token')
-            req = requests.get('{}/contexts'.format(max_url), params={"twitter_enabled": True}, headers=oauth2Header(max_username, max_token))
+            req = requests.get('{}/contexts'.format(max_url), params={"twitter_enabled": True, "limit": 0}, headers=oauth2Header(max_username, max_token))
             if req.status_code == 200:
                 contexts[max_settings] = req.json()
         return contexts
@@ -40,7 +40,7 @@ class TweetyMessage(object):
             max_url = self.bunny.instances.get(max_settings, 'server')
             max_username = self.bunny.instances.get(max_settings, 'restricted_user')
             max_token = self.bunny.instances.get(max_settings, 'restricted_user_token')
-            req = requests.get('{}/people'.format(max_url), params={"twitter_enabled": True}, headers=oauth2Header(max_username, max_token))
+            req = requests.get('{}/people'.format(max_url), params={"twitter_enabled": True, "limit": 0}, headers=oauth2Header(max_username, max_token))
             if req.status_code == 200:
                 users[max_settings] = req.json()
         return users
