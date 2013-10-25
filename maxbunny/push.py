@@ -31,16 +31,23 @@ class PushMessage(object):
             elif token.get('platform') == 'android':
                 atokens.append(token.get('token'))
 
+        message = json.dumps({
+            'conversation': self.message['conversation_id'],
+            'username': self.message['username'],
+            'displayName': self.message['displayName'],
+            'message': self.message['message']
+        })
+
         if self.bunny.cloudapis.get('push', 'push_certificate_file') and itokens:
             try:
-                self.send_ios_push_notifications(itokens, self.message.get('message'))
+                self.send_ios_push_notifications(itokens, message)
             except Exception, errmsg:
                 return_message = "iOS device push failed: {0}, reason: {1}".format(itokens, errmsg)
                 LOGGER.info(return_message)
 
         if self.bunny.cloudapis.get('push', 'android_push_api_key') and atokens:
             try:
-                self.send_android_push_notifications(atokens, self.message.get('message'))
+                self.send_android_push_notifications(atokens, message)
             except Exception, errmsg:
                 return_message = "Android device push failed: {0}, reason: {1}".format(atokens, errmsg)
                 LOGGER.info(return_message)
