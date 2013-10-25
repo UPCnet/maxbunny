@@ -32,7 +32,7 @@ class PushMessage(object):
                 atokens.append(token.get('token'))
 
         message = json.dumps({
-            'conversation': self.message['conversation_id'],
+            'conversation': self.message['conversation'],
             'username': self.message['username'],
             'displayName': self.message['displayName'],
             'message': self.message['message']
