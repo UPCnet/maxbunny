@@ -1,11 +1,11 @@
 Changelog
 =========
 
-1.3 (unreleased)
+1.3 (2013-10-29)
 ----------------
 
-- Nothing changed yet.
-
+* Fix wrong key name [Carles Bruguera]
+* Include message properties in notifications [Carles Bruguera]
 
 1.2 (2013-10-17)
 ----------------
