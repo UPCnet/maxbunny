@@ -40,7 +40,7 @@ class PushMessage(object):
 
         if self.bunny.cloudapis.get('push', 'push_certificate_file') and itokens:
             try:
-                self.send_ios_push_notifications(itokens, message)
+                self.send_ios_push_notifications(itokens, '{username}: {message}'.format(**self.message))
             except Exception, errmsg:
                 return_message = "iOS device push failed: {0}, reason: {1}".format(itokens, errmsg)
                 LOGGER.info(return_message)
