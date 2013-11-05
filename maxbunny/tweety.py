@@ -95,6 +95,10 @@ class TweetyMessage(object):
                 return_message = u"(201) Successfully posted tweet {} from {} as context {}".format(self.message.get('stid'), self.author, context.get('url'))
                 return_messages.append(return_message)
                 LOGGER.info(return_message)
+            elif code == 200:
+                return_message = u"(200) Tweet {} from {} as context {} already posted".format(self.message.get('stid'), self.author, context.get('url'))
+                return_messages.append(return_message)
+                LOGGER.info(return_message)
             else:  # pragma: no cover
                 return_message = u"({}) Error posting tweet as context {} of {} server - {}".format(code, context.get('url'), context.get('maxserver'), response)
                 return_messages.append(return_message)
@@ -111,6 +115,10 @@ class TweetyMessage(object):
             success, code, response = self.bunny.maxclients[context.get('maxserver')].addActivity(self.message.get('message'), contexts=[context.get('url')], generator=GENERATOR_ID, username=username)
             if code == 201:
                 return_message = u"(201) Successfully posted tweet {} from {} to context {}".format(self.message.get('stid'), self.author, context.get('url'))
+                return_messages.append(return_message)
+                LOGGER.info(return_message)
+            elif code == 200:
+                return_message = u"(200) Tweet {} from {} to context {} already posted".format(self.message.get('stid'), self.author, context.get('url'))
                 return_messages.append(return_message)
                 LOGGER.info(return_message)
             else:  # pragma: no cover
