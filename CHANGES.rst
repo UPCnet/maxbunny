@@ -1,11 +1,11 @@
 Changelog
 =========
 
-1.4 (unreleased)
+1.4 (2013-11-07)
 ----------------
 
-- Nothing changed yet.
-
+* Log duplicated tweets apart [Carles Bruguera]
+* Send message as string on iOS [Carles Bruguera]
 
 1.3 (2013-10-29)
 ----------------
