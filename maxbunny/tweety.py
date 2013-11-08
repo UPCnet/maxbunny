@@ -47,9 +47,15 @@ class TweetyMessage(object):
 
     def get_followed_users_by_name(self, contexts):
         followed_users = {}
+
         for maxserver in contexts.keys():
             for context in contexts[maxserver]:
-                followed_users.setdefault(context.get('twitterUsername'), []).append(maxserver)
+                followed_users.setdefault(context.get('twitterUsername'), [])
+
+                # In the case that the user key already contains a maxserver
+                # add it only if it's not the same maxserver ...
+                if maxserver not in followed_users[context.get('twitterUsername')]:
+                    followed_users[context.get('twitterUsername')].append(maxserver)
         return followed_users
 
     def get_all_contexts_by_hashtag(self, contexts):
