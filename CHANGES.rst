@@ -1,11 +1,10 @@
 Changelog
 =========
 
-1.4.1 (unreleased)
+1.4.1 (2013-11-11)
 ------------------
 
-- Nothing changed yet.
-
+* Catched twitter duplications bug, #atlast [Carles Bruguera]
 
 1.4 (2013-11-07)
 ----------------
