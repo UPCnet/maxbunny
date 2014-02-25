@@ -15,6 +15,48 @@ import sys
 LOGGER = logging.getLogger('bunny')
 
 
+class MaxClientsWrapper(object):
+    """
+        Mimics a dict of maxclients, which tries to reload new-defined maxservers
+        from disk config file if asked for a non-existant client
+    """
+    def __init__(self, instances_config_file):
+        self.instances_config_file = instances_config_file
+        self.maxclients = {}
+        self.load_instances()
+
+    def load_instances(self):
+        """
+            Loads instances.ini and parses all maxservers. For each maxserver
+            a maxclient with key "max_xxxxxx" is stored on self.maxclients
+        """
+        self.instances = ConfigParser.ConfigParser()
+        self.instances.read(self.instances_config_file)
+
+        max_instances = [maxserver for maxserver in self.instances.sections() if maxserver.startswith('max_')]
+
+        # Instantiate a maxclient for each maxserver
+        for maxserver in max_instances:
+            maxclient = MaxClient(url=self.instances.get(maxserver, 'server'), oauth_server=self.instances.get(maxserver, 'oauth_server'))
+            maxclient.setActor(self.instances.get(maxserver, 'restricted_user'))
+            maxclient.setToken(self.instances.get(maxserver, 'restricted_user_token'))
+            self.maxclients[maxserver] = maxclient
+
+    def __getitem__(self, key):
+        """
+            Retrieves a specific maxserver client. Returns None if not found
+        """
+        maxclient = self.maxclients.get(key, None)
+
+        # If no maxclient found
+        if maxclient is None:
+            # reload maxservers from file and try it again
+            self.load_instances()
+            maxclient = self.maxclients.get(key, None)
+
+        return maxclient
+
+
 class MAXRabbitConsumer(rabbitMQConsumer):
 
     push_queue = 'push'
@@ -38,22 +80,10 @@ class MAXRabbitConsumer(rabbitMQConsumer):
         self.cloudapis = ConfigParser.ConfigParser()
         self.cloudapis.read(cloudapis_config_file)
 
-        self.instances = ConfigParser.ConfigParser()
-        self.instances.read(instances_config_file)
-
         self._url = self.common.get('rabbitmq', 'server')
 
         self.ios_session = Session()
-
-        self.maxservers_settings = [maxserver for maxserver in self.instances.sections() if maxserver.startswith('max_')]
-
-        # Instantiate a maxclient for each maxserver
-        self.maxclients = {}
-        for maxserver in self.maxservers_settings:
-            maxclient = MaxClient(url=self.instances.get(maxserver, 'server'), oauth_server=self.instances.get(maxserver, 'oauth_server'))
-            maxclient.setActor(self.instances.get(maxserver, 'restricted_user'))
-            maxclient.setToken(self.instances.get(maxserver, 'restricted_user_token'))
-            self.maxclients[maxserver] = maxclient
+        self.maxclients = MaxClientsWrapper(instances_config_file)
 
     def on_channel_open(self, channel):
         LOGGER.info('Channel opened')
