@@ -8,21 +8,22 @@ import time
 class ConversationsConsumer(BunnyConsumer):
     """
     """
+    name = 'conversations'
     queue = 'messages'
 
     def _process(self, message):
         """
         """
-        #print __name__, self.id, message.body
+        #print 'conversations', self.id, message.body
         if message.body in ['3', '6']:
             return BUNNY_REQUEUE
         if message.body == '0':
             return BUNNY_CANCEL
 
         if message.body == 'start':
-            print 'start', time.time()
+            self.logger.info('start {}'.format(time.time()))
         if message.body == 'end':
-            print 'end', time.time()
+            self.logger.info('end {}'.format(time.time()))
         return BUNNY_OK
 
 

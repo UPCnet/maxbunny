@@ -1,5 +1,9 @@
 import rabbitpy
 import gevent
+from gevent.hub import GreenletExit
+from gevent.pool import Pool
+from gevent import getcurrent
+import logging
 
 BUNNY_OK = 0x00
 BUNNY_CANCEL = 0x01
@@ -7,28 +11,64 @@ BUNNY_REQUEUE = 0x02
 
 
 class BunnyConsumer(object):
+    name = 'consumer'
     queue = 'amq.queue'
 
-    def __init__(self, channel, rabbitmq_server, clients):
+    def __init__(self, channel, ready, rabbitmq_server, clients, workers, logging_folder):
         """
         """
         self.channel = channel
+        self.ready = ready
         self.rabbitmq_server = rabbitmq_server
         self.clients = clients
+        self.logging_folder = logging_folder
 
-    def run(self, worker_id):
+        # Setup logger
+        self.logger = self.configure_logger()
+        self.root_logger = logging.getLogger('bunny')
+
+        self.pool = Pool(workers)
+
+    def configure_logger(self):
+        logger = logging.getLogger(self.name)
+
+        logger.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(levelname)s %(asctime)s %(message)s')
+
+        handler = logging.FileHandler('{}/{}.log'.format(self.logging_folder, self.name))
+        handler.setFormatter(formatter)
+        handler.setLevel(logging.INFO)
+
+        logger.addHandler(handler)
+
+        return logger
+
+    def add_worker(self):
+        self.pool.spawn(self.consume)
+
+    def stop(self):
+        self.pool.kill()
+
+    def consume(self):
         """
             Start consuming loop
         """
-        #print 'start', worker_id
-        self.id = worker_id
+        self.root_logger.info('Starting Worker {}'.format(id(getcurrent())))
         queue = rabbitpy.Queue(self.channel, self.queue)
-        # Consume the message
-        for message in queue.consume_messages():
-            self.process(message)
-            #print 'after message', worker_id
-            gevent.sleep(0.0000000000001)
-        gevent.sleep(0.0000000000001)
+
+        # Wait for all workers to start eating carrots
+        self.ready.get()
+        self.root_logger.info('Worker {} started'.format(id(getcurrent())))
+
+        # Start consuming messages
+        try:
+            for message in queue.consume_messages():
+                self.process(message)
+                gevent.sleep()
+
+        # Stop when required by runner
+        except GreenletExit:
+            self.root_logger.info('Exiting Worker {}'.format(id(getcurrent())))
 
     def process(self, message):
         """

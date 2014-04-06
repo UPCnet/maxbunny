@@ -4,15 +4,16 @@ from maxbunny.consumer import BUNNY_CANCEL
 from maxbunny.consumer import BUNNY_REQUEUE
 
 
-class ConversationsConsumer(BunnyConsumer):
+class PushConsumer(BunnyConsumer):
     """
     """
-    queue = 'messages'
+    name = 'push'
+    queue = 'push'
 
     def _process(self, message):
         """
         """
-        print __name__, self.id, message.body
+        #print 'push', self.id, message.body
         if message.body in ['3', '6']:
             return BUNNY_REQUEUE
         if message.body == '0':
@@ -20,4 +21,4 @@ class ConversationsConsumer(BunnyConsumer):
         return BUNNY_OK
 
 
-__consumer__ = ConversationsConsumer
+__consumer__ = PushConsumer

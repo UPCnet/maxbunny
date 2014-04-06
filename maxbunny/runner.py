@@ -1,5 +1,6 @@
 import gevent
-from gevent.pool import Pool
+from gevent.monkey import patch_time
+from gevent.event import AsyncResult
 from maxbunny.clients import MaxClientsWrapper
 import ConfigParser
 import re
@@ -7,7 +8,9 @@ import logging
 import importlib
 import rabbitpy
 
+
 logger = logging.getLogger('bunny')
+patch_time()
 
 
 class BunnyRunner(object):
@@ -28,9 +31,10 @@ class BunnyRunner(object):
         self.workers = int(self.config.get('main', 'workers'))
 
         self.conn = rabbitpy.Connection(self.rabbitmq_server)
-        self.channel = self.conn.channel()
 
         for plugin in self.plugins:
+
+            # Import consumer module, ignore it on errors
             try:
                 module = importlib.import_module('maxbunny.consumers.{}'.format(plugin))
             except ImportError:
@@ -40,6 +44,7 @@ class BunnyRunner(object):
                 logger.info('An error occurred trying to load plugin "{}"'.format(plugin))
                 break
 
+            # Load consumer class, ignore it on errors
             try:
                 klass = getattr(module, '__consumer__')
             except AttributeError:
@@ -49,13 +54,10 @@ class BunnyRunner(object):
                 logger.info('An error occurred trying to load consumer from plugin "{}"'.format(plugin))
                 break
 
-            self.consumers[plugin] = {
-                'instance': klass,
-                'workers': []
-            }
+            # Create a consumer instance for each plugin
+            self.workers_ready = AsyncResult()
+            self.consumers[plugin] = klass(self.conn.channel(), self.workers_ready, self.rabbitmq_server, self.clients, self.workers, self.config.get('main', 'logging_folder'))
             logger.info('Plugin "{}" loaded'.format(plugin))
-
-        self.pool = Pool(len(self.consumers) * self.workers)
 
     def load_config(self, config):
         """
@@ -78,17 +80,23 @@ class BunnyRunner(object):
         """
             Spawn as much workers as defined in maxbunny.ini config for each loaded plugin
         """
-        worker_id = 0
         for plugin_id, consumer in self.consumers.items():
             for worker in range(self.workers):
-                print worker_id
-                self.pool.spawn(consumer['instance'](self.channel, self.rabbitmq_server, self.clients).run, worker_id)
-                worker_id += 1
+                consumer.add_worker()
+                gevent.sleep()
+
+        self.workers_ready.set(True)
 
         while True:
-            gevent.sleep(0.01)
+            try:
+                gevent.sleep()
+            except KeyboardInterrupt:
+                self.stop()
+                break
 
     def stop(self):
+        logger.info("Stopping workers")
         for plugin_id, consumer in self.consumers.items():
-            for worker in consumer['workers']:
-                worker.kill()
+            consumer.stop()
+        logger.info("Disconnecting from rabbitmq")
+        self.conn.close()
