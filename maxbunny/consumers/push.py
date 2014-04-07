@@ -3,6 +3,8 @@ from maxbunny.consumer import BUNNY_OK
 from maxbunny.consumer import BUNNY_CANCEL
 from maxbunny.consumer import BUNNY_REQUEUE
 
+from apnsclient import Session
+
 
 class PushConsumer(BunnyConsumer):
     """
@@ -10,7 +12,10 @@ class PushConsumer(BunnyConsumer):
     name = 'push'
     queue = 'push'
 
-    def _process(self, message):
+    def configure(self):
+        self.ios_session = Session()
+
+    def process(self, message):
         """
         """
         #print 'push', self.id, message.body

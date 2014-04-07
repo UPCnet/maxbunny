@@ -1,6 +1,7 @@
 import gevent
 from gevent.monkey import patch_time
 from gevent.event import AsyncResult
+from gevent import getcurrent
 from maxbunny.clients import MaxClientsWrapper
 import ConfigParser
 import re
@@ -31,6 +32,7 @@ class BunnyRunner(object):
         self.workers = int(self.config.get('main', 'workers'))
 
         self.conn = rabbitpy.Connection(self.rabbitmq_server)
+        self.workers_ready = AsyncResult()
 
         for plugin in self.plugins:
 
@@ -46,7 +48,7 @@ class BunnyRunner(object):
 
             # Load consumer class, ignore it on errors
             try:
-                klass = getattr(module, '__consumer__')
+                consumer_class = getattr(module, '__consumer__')
             except AttributeError:
                 logger.info('No consumer defined in plugin "{}"'.format(plugin))
                 break
@@ -55,8 +57,8 @@ class BunnyRunner(object):
                 break
 
             # Create a consumer instance for each plugin
-            self.workers_ready = AsyncResult()
-            self.consumers[plugin] = klass(self.conn.channel(), self.workers_ready, self.rabbitmq_server, self.clients, self.workers, self.config.get('main', 'logging_folder'))
+
+            self.consumers[plugin] = consumer_class(self)
             logger.info('Plugin "{}" loaded'.format(plugin))
 
     def load_config(self, config):
@@ -76,27 +78,65 @@ class BunnyRunner(object):
         self.instances = ConfigParser.ConfigParser()
         self.instances.read(instances_config_file)
 
+    def start_consumer(self, consumer):
+        """
+            Start a consumer with N workers for each plugin defined
+        """
+        for worker in range(self.workers):
+            consumer.add_worker()
+            gevent.sleep(ref=False)
+
+    def restart(self, clean_restart=True, source=None):
+        """
+            Make sure all defined cosumers stop all spawned greenlets
+            And try to reconnect to RabbitMQ. Once done, reinitialize
+            consumers and restart the listening loops;
+        """
+        for plugin_id, consumer in self.consumers.items():
+            if clean_restart:
+                consumer.stop(ignore=source)
+            consumer.empty_pool()
+        restarted = False
+        logger.info('Waiting for RabbitMQ ...')
+
+        while not restarted:
+            try:
+                self.conn = rabbitpy.Connection(self.rabbitmq_server)
+            except:
+                gevent.sleep(2, ref=False)
+                logger.info('Still waiting ...')
+            else:
+                restarted = True
+                logger.info('Connection with RabbitMQ recovered!')
+                self.workers_ready = AsyncResult()
+                for plugin_id, consumer in self.consumers.items():
+                    consumer.__configure__(self)
+                self.start()
+
     def start(self):
         """
             Spawn as much workers as defined in maxbunny.ini config for each loaded plugin
         """
         for plugin_id, consumer in self.consumers.items():
-            for worker in range(self.workers):
-                consumer.add_worker()
-                gevent.sleep()
+            self.start_consumer(consumer)
 
         self.workers_ready.set(True)
 
-        while True:
-            try:
-                gevent.sleep()
-            except KeyboardInterrupt:
-                self.stop()
-                break
-
     def stop(self):
+        """
+            Stop all consumers and close rabbitmq connection
+        """
         logger.info("Stopping workers")
         for plugin_id, consumer in self.consumers.items():
             consumer.stop()
         logger.info("Disconnecting from rabbitmq")
         self.conn.close()
+
+    def quit(self):
+        """
+            Final cleanup to exit process
+        """
+        self.stop()
+        for plugin_id, consumer in self.consumers.items():
+            consumer.empty_pool()
+        gevent.kill(getcurrent())

@@ -4,6 +4,7 @@ from gevent.hub import GreenletExit
 from gevent.pool import Pool
 from gevent import getcurrent
 import logging
+from rabbitpy.exceptions import ConnectionResetException
 
 BUNNY_OK = 0x00
 BUNNY_CANCEL = 0x01
@@ -14,20 +15,27 @@ class BunnyConsumer(object):
     name = 'consumer'
     queue = 'amq.queue'
 
-    def __init__(self, channel, ready, rabbitmq_server, clients, workers, logging_folder):
+    def __init__(self, runner):
         """
         """
-        self.channel = channel
-        self.ready = ready
-        self.rabbitmq_server = rabbitmq_server
-        self.clients = clients
-        self.logging_folder = logging_folder
+        self.__configure__(runner)
 
         # Setup logger
         self.logger = self.configure_logger()
         self.root_logger = logging.getLogger('bunny')
 
-        self.pool = Pool(workers)
+    def __configure__(self, runner):
+        self.channel = runner.conn.channel()
+        self.ready = runner.workers_ready
+        self.on_restart = runner.restart
+        self.rabbitmq_server = runner.rabbitmq_server
+        self.clients = runner.clients
+        self.logging_folder = runner.config.get('main', 'logging_folder')
+        self.pool = Pool(runner.workers)
+
+        # execute custom configuration options
+        if hasattr(self, 'configure'):
+            self.configure()
 
     def configure_logger(self):
         logger = logging.getLogger(self.name)
@@ -44,38 +52,80 @@ class BunnyConsumer(object):
         return logger
 
     def add_worker(self):
+        """
+            Create a new greenlet with the consume task
+        """
         self.pool.spawn(self.consume)
 
-    def stop(self):
-        self.pool.kill()
+    def stop_consuming(self):
+        """
+            Close the channel to make all consumer connections disappear
+        """
+        self.channel.close()
+
+    def stop_workers(self, ignore):
+        """
+            Kill consumer greenlets
+        """
+        grenlets = [greenlet for greenlet in self.pool]
+        for greenlet in grenlets:
+            if ignore is None or ignore == id(greenlet):
+                greenlet.kill()
+
+    def empty_pool(self):
+        """
+            Remove greenlets from the pool and disable it
+        """
+        grenlets = [greenlet for greenlet in self.pool]
+        for greenlet in grenlets:
+            self.pool.discard(greenlet)
+        self.pool = None
+
+    def stop(self, ignore=None):
+        """
+            Stop all consumer-related structures
+        """
+        self.stop_consuming()
+        self.stop_workers(ignore=ignore)
+
+    def restart(self):
+        """
+            Signal the runner a restart event, to broadcast to the rest of consumers
+        """
+        self.on_restart(clean_restart=True, source=id(getcurrent()))
 
     def consume(self):
         """
             Start consuming loop
         """
-        self.root_logger.info('Starting Worker {}'.format(id(getcurrent())))
         queue = rabbitpy.Queue(self.channel, self.queue)
 
         # Wait for all workers to start eating carrots
         self.ready.get()
-        self.root_logger.info('Worker {} started'.format(id(getcurrent())))
+        self.logger.info('Worker {} ready'.format(id(getcurrent())))
 
         # Start consuming messages
         try:
             for message in queue.consume_messages():
-                self.process(message)
-                gevent.sleep()
+                if message:
+                    self.__process__(message)
+                gevent.sleep(ref=True)
 
         # Stop when required by runner
         except GreenletExit:
-            self.root_logger.info('Exiting Worker {}'.format(id(getcurrent())))
+            self.logger.info('Exiting Worker {}'.format(id(getcurrent())))
+            self.stop_consuming()
+        except ConnectionResetException:
+            self.root_logger.warning('Rabbit Connection Reset')
+            self.logger.warning('Exiting Worker {}'.format(id(getcurrent())))
+            self.restart()
 
-    def process(self, message):
+    def __process__(self, message):
         """
             Common functionality for processing messages
             Processes the message and acks it
         """
-        result = self._process(message)
+        result = self.process(message)
         if result == BUNNY_OK:
             message.ack()
         elif result == BUNNY_CANCEL:
@@ -83,7 +133,7 @@ class BunnyConsumer(object):
         elif result == BUNNY_REQUEUE:
             message.nack(requeue=True)
 
-    def _process(self, message):
+    def process(self, message):
         """
             Real processing code for consumers live here. Consumers implementing
             BunnyConsumer, receive a rabbitpy.Message and sould return one of

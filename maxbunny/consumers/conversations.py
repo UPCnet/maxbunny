@@ -11,7 +11,7 @@ class ConversationsConsumer(BunnyConsumer):
     name = 'conversations'
     queue = 'messages'
 
-    def _process(self, message):
+    def process(self, message):
         """
         """
         #print 'conversations', self.id, message.body
