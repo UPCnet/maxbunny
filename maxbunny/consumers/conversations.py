@@ -1,7 +1,9 @@
-from maxbunny.consumer import BunnyConsumer
-from maxbunny.consumer import BUNNY_OK
+# -*- coding: utf-8 -*-
 from maxbunny.consumer import BUNNY_CANCEL
+from maxbunny.consumer import BUNNY_OK
 from maxbunny.consumer import BUNNY_REQUEUE
+from maxbunny.consumer import BunnyConsumer
+
 import time
 
 

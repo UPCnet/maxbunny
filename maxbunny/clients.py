@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from maxclient.wsgi import MaxClient
 
 

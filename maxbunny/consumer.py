@@ -1,10 +1,13 @@
-import rabbitpy
-import gevent
+# -*- coding: utf-8 -*-
+from gevent import getcurrent
 from gevent.hub import GreenletExit
 from gevent.pool import Pool
-from gevent import getcurrent
-import logging
 from rabbitpy.exceptions import ConnectionResetException
+
+import gevent
+import logging
+import rabbitpy
+
 
 BUNNY_OK = 0x00
 BUNNY_CANCEL = 0x01
@@ -35,7 +38,7 @@ class BunnyConsumer(object):
 
         # execute custom configuration options
         if hasattr(self, 'configure'):
-            self.configure()
+            self.configure(runner)
 
     def configure_logger(self):
         logger = logging.getLogger(self.name)

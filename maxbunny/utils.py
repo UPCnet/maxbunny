@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 from logging.config import fileConfig
+
 import ConfigParser
 import os
 import re
+
 
 UNICODE_ACCEPTED_CHARS = u'áéíóúàèìòùïöüçñ'
 

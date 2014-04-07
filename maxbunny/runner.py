@@ -1,13 +1,15 @@
-import gevent
-from gevent.monkey import patch_time
-from gevent.event import AsyncResult
+# -*- coding: utf-8 -*-
 from gevent import getcurrent
+from gevent.event import AsyncResult
+from gevent.monkey import patch_time
 from maxbunny.clients import MaxClientsWrapper
+
 import ConfigParser
-import re
-import logging
+import gevent
 import importlib
+import logging
 import rabbitpy
+import re
 
 
 logger = logging.getLogger('bunny')

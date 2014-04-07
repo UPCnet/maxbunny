@@ -1,10 +1,12 @@
+# -*- coding: utf-8 -*-
 from maxbunny.utils import setup_logging
-import argparse
+
 import ConfigParser
-import logging
-import sys
+import argparse
 import gevent
+import logging
 import signal
+import sys
 
 
 LOGGER = logging.getLogger('bunny')
