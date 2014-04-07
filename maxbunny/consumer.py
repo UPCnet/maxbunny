@@ -46,7 +46,8 @@ class BunnyConsumer(object):
         logger.setLevel(logging.INFO)
         formatter = logging.Formatter('%(levelname)s %(asctime)s %(message)s')
 
-        handler = logging.FileHandler('{}/{}.log'.format(self.logging_folder, self.name))
+        logname = self.logname if hasattr(self, 'logname') else '{}.log'.format(self.name)
+        handler = logging.FileHandler('{}/{}'.format(self.logging_folder, logname))
         handler.setFormatter(formatter)
         handler.setLevel(logging.INFO)
 

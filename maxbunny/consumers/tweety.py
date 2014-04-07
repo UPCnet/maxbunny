@@ -19,6 +19,7 @@ class TweetyConsumer(BunnyConsumer):
     """
     name = 'tweety'
     queue = 'twitter'
+    logname = 'twitter-processor.log'
 
     def configure(self, runner):
         self.contexts = self.get_twitter_enabled_contexts()
