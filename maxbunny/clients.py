@@ -24,7 +24,7 @@ class MaxClientsWrapper(object):
             maxclient = MaxClient(url=self.instances.get(maxserver, 'server'), oauth_server=self.instances.get(maxserver, 'oauth_server'))
             maxclient.setActor(self.instances.get(maxserver, 'restricted_user'))
             maxclient.setToken(self.instances.get(maxserver, 'restricted_user_token'))
-            self.maxclients[maxserver] = maxclient
+            self.maxclients[maxserver.lstrip('max_')] = maxclient
 
     def __getitem__(self, key):
         """

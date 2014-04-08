@@ -3,8 +3,9 @@ from maxbunny.consumer import BUNNY_CANCEL
 from maxbunny.consumer import BUNNY_OK
 from maxbunny.consumer import BUNNY_REQUEUE
 from maxbunny.consumer import BunnyConsumer
+from maxcarrot.message import RabbitMessage
 
-import time
+from maxclient.rest import RequestError
 
 
 class ConversationsConsumer(BunnyConsumer):
@@ -13,20 +14,25 @@ class ConversationsConsumer(BunnyConsumer):
     name = 'conversations'
     queue = 'messages'
 
-    def process(self, message):
+    def process(self, rabbitpy_message):
         """
         """
-        #print 'conversations', self.id, message.body
-        if message.body in ['3', '6']:
-            return BUNNY_REQUEUE
-        if message.body == '0':
-            return BUNNY_CANCEL
+        message = RabbitMessage.unpack(rabbitpy_message.json())
 
-        if message.body == 'start':
-            self.logger.info('start {}'.format(time.time()))
-        if message.body == 'end':
-            self.logger.info('end {}'.format(time.time()))
-        return BUNNY_OK
+        conversation_id = rabbitpy_message.routing_key
+        domain = message.get('domain', 'default')
+        client = self.clients[domain]
+        endpoint = client.people[message.user].conversations[conversation_id].messages
+
+        try:
+            endpoint.post(object_content=message.data['text'])
+        except RequestError as error:
+            if error.code / 100 == 5:
+                return BUNNY_REQUEUE
+            else:
+                return BUNNY_CANCEL
+        else:
+            return BUNNY_OK
 
 
 __consumer__ = ConversationsConsumer

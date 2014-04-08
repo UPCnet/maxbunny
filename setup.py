@@ -7,7 +7,7 @@ README = open(os.path.join(here, 'README.rst')).read()
 CHANGES = open(os.path.join(here, 'CHANGES.rst')).read()
 
 requires = [
-    'pika',
+    'maxcarrot',
     'maxclient',
     'apns_client',
     'gcm-client'

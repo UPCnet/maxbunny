@@ -133,8 +133,10 @@ class BunnyConsumer(object):
         if result == BUNNY_OK:
             message.ack()
         elif result == BUNNY_CANCEL:
+            self.logger.warning('Message droped')
             message.nack()
         elif result == BUNNY_REQUEUE:
+            self.logger.warning('Message requeued')
             message.nack(requeue=True)
 
     def process(self, message):
