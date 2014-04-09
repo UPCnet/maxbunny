@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from gevent import getcurrent
 from gevent.event import AsyncResult
-from gevent.monkey import patch_time
+from gevent.monkey import patch_all
 from maxbunny.clients import MaxClientsWrapper
 
 import ConfigParser
@@ -13,7 +13,7 @@ import re
 
 
 logger = logging.getLogger('bunny')
-patch_time()
+patch_all()
 
 
 class BunnyRunner(object):

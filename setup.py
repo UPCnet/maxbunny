@@ -10,7 +10,8 @@ requires = [
     'maxcarrot',
     'maxclient',
     'apns_client',
-    'gcm-client'
+    'gcm-client',
+    'gevent'
 ]
 
 setup(name='maxbunny',

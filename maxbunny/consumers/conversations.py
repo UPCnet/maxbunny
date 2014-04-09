@@ -7,6 +7,8 @@ from maxcarrot.message import RabbitMessage
 
 from maxclient.rest import RequestError
 
+import re
+
 
 class ConversationsConsumer(BunnyConsumer):
     """
@@ -19,7 +21,7 @@ class ConversationsConsumer(BunnyConsumer):
         """
         message = RabbitMessage.unpack(rabbitpy_message.json())
 
-        conversation_id = rabbitpy_message.routing_key
+        conversation_id = re.search(r'(\w+).messages', rabbitpy_message.routing_key).groups()[0]
         domain = message.get('domain', 'default')
         client = self.clients[domain]
         endpoint = client.people[message.user].conversations[conversation_id].messages
