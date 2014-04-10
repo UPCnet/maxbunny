@@ -24,7 +24,7 @@ class ConversationsConsumer(BunnyConsumer):
         conversation_id = re.search(r'(\w+).messages', rabbitpy_message.routing_key).groups()[0]
         domain = message.get('domain', 'default')
         client = self.clients[domain]
-        endpoint = client.people[message.user].conversations[conversation_id].messages
+        endpoint = client.people[message.user['username']].conversations[conversation_id].messages
 
         try:
             endpoint.post(object_content=message.data['text'])
