@@ -14,6 +14,11 @@ LOGGER = logging.getLogger('bunny')
 
 from maxbunny.runner import BunnyRunner
 
+from OpenSSL import *
+from maxbunny.SSL import Connection
+
+mod = __import__('OpenSSL').SSL
+mod.Connection = Connection
 
 def main(argv=sys.argv, quiet=False):  # pragma: no cover
 
