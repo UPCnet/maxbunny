@@ -12,6 +12,7 @@ import rabbitpy
 BUNNY_OK = 0x00
 BUNNY_CANCEL = 0x01
 BUNNY_REQUEUE = 0x02
+BUNNY_NO_DOMAIN = 0x04
 
 
 class BunnyConsumer(object):

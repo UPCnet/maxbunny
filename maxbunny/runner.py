@@ -26,7 +26,7 @@ class BunnyRunner(object):
         self.load_config(config)
 
         self.rabbitmq_server = self.common.get('rabbitmq', 'server')
-        self.clients = MaxClientsWrapper(self.instances)
+        self.clients = MaxClientsWrapper(self.instances, self.config.get('main', 'default_domain'))
 
         self.consumers = {}
 
