@@ -1,14 +1,54 @@
 # -*- coding: utf-8 -*-
 from logging.config import fileConfig
-
+from maxcarrot.message import RabbitMessage
 import ConfigParser
 import os
 import re
+import json
 
 
 UNICODE_ACCEPTED_CHARS = u'áéíóúàèìòùïöüçñ'
 
 FIND_HASHTAGS_REGEX = r'(\s|^)#{1}([\w\-\_\.%s]+)' % UNICODE_ACCEPTED_CHARS
+
+
+def send_requeue_traceback(email, consumer_name, traceback, rabbitpy_message):
+    params = {
+        'server': os.uname()[1],
+        'routing_key': rabbitpy_message.routing_key,
+        'consumer': consumer_name,
+        'message': json.dumps(RabbitMessage.unpack(rabbitpy_message.json()), indent=4),
+        'traceback': traceback
+    }
+
+    mail_body = """
+Hello,
+
+this message is to inform that a message has been requed because a failure
+on a MaxBunny consumer at "{server}". You'll receive this notification only once
+for each message, but the message will remain qeued. Please fix it !
+
+Message adressed to destination: {routing_key} containing:
+
+{message}
+
+failed on consumer "{consumer}" with the following traceback:
+
+{traceback}
+
+""".format(**params)
+
+    return mail_body
+
+
+def get_message_uuid(rabbitpy_message):
+    try:
+        message = rabbitpy_message.json()
+
+    except:
+        return None
+    else:
+        return message.get('g', None)
 
 
 def _getpathsec(config_uri, name):

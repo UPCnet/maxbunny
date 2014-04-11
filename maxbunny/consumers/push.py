@@ -5,12 +5,11 @@ from apnsclient import Session
 from gcmclient import GCM
 from gcmclient import GCMAuthenticationError
 from gcmclient import JSONMessage
-from maxbunny.consumer import BUNNY_CANCEL
-from maxbunny.consumer import BUNNY_OK
-from maxbunny.consumer import BUNNY_REQUEUE
-from maxbunny.consumer import BunnyConsumer
+from maxbunny.consumer import BUNNY_NO_DOMAIN
+from maxbunny.consumer import BunnyConsumer, BunnyMessageCancel
+from maxcarrot.message import RabbitMessage
 
-import json
+import re
 
 
 class PushConsumer(BunnyConsumer):
@@ -21,57 +20,59 @@ class PushConsumer(BunnyConsumer):
 
     def configure(self, runner):
         self.ios_session = Session()
+        self.ios_push_certificate_file = runner.cloudapis.get('push', 'push_certificate_file')
+        self.android_push_api_key = runner.cloudapis.get('push', 'android_push_api_key')
 
-    def process(self, message):
+    def process(self, rabbitpy_message):
         """
         """
-        #print 'push', self.id, message.body
-        if message.body in ['3', '6']:
-            return BUNNY_REQUEUE
-        if message.body == '0':
-            return BUNNY_CANCEL
-        return BUNNY_OK
+        unpacked_message = rabbitpy_message.json()
+        message = RabbitMessage.unpack(rabbitpy_message.json())
 
-        conversation_id = self.message.get('conversation', None)
+        conversation_id = re.search(r'(\w+).messages', rabbitpy_message.routing_key).groups()[0]
+        domain = message.get('domain', BUNNY_NO_DOMAIN)
+        client = self.clients[domain]
+
+        # #print 'push', self.id, message.body
+        # if message.body in ['3', '6']:
+        #     return BUNNY_REQUEUE
+        # if message.body == '0':
+        #     return BUNNY_CANCEL
+        # return BUNNY_OK
+
         if conversation_id is None:
             self.logger.info('The message received is not a valid conversation')
-            return
+            return BunnyMessageCancel()
 
-        success, code, response = self.bunny.maxclients['max_' + self.message.get('server_id')].pushtokens_by_conversation(self.message.get('conversation'))
+        tokens = client.conversations[conversation_id].tokens.get()
 
-        itokens = []
-        atokens = []
-        for token in response:
+        tokens_by_platform = {}
+
+        for token in tokens:
             # TODO: On production, not send notification to sender
             # if token.get('username') != self.message.get('username'):
-            if token.get('platform') == 'iOS':
-                itokens.append(token.get('token'))
-            elif token.get('platform') == 'android':
-                atokens.append(token.get('token'))
+            tokens_by_platform.setdefault(token.get('platform'), []).append(token.get('token'))
 
-        message = json.dumps({
-            'conversation': self.message['conversation'],
-            'username': self.message['username'],
-            'displayName': self.message['displayName'],
-            'message': self.message['message']
-        })
-
-        if self.bunny.cloudapis.get('push', 'push_certificate_file') and itokens:
+        if self.ios_push_certificate_file and tokens_by_platform.get('iOS', []):
             try:
-                self.send_ios_push_notifications(itokens, '{username}: {message}'.format(**self.message))
+                self.send_ios_push_notifications(tokens_by_platform['iOS'], '{}: {}'.format(message['user']['username'], message['data']['text']))
             except Exception, errmsg:
-                return_message = "iOS device push failed: {0}, reason: {1}".format(itokens, errmsg)
+                return_message = "iOS device push failed: {0}, reason: {1}".format(tokens_by_platform['iOS'], errmsg)
                 self.logger.info(return_message)
+                raise BunnyMessageCancel()
 
-        if self.bunny.cloudapis.get('push', 'android_push_api_key') and atokens:
+        if self.android_push_api_key and tokens_by_platform.get('android', []):
             try:
-                self.send_android_push_notifications(atokens, message)
+                self.send_android_push_notifications(tokens_by_platform['android'], unpacked_message)
             except Exception, errmsg:
-                return_message = "Android device push failed: {0}, reason: {1}".format(atokens, errmsg)
+                return_message = "Android device push failed: {0}, reason: {1}".format(tokens_by_platform['android'], errmsg)
                 self.logger.info(return_message)
+                raise BunnyMessageCancel()
+
+        return
 
     def send_ios_push_notifications(self, tokens, message):
-        con = self.ios_session.get_connection("push_production", cert_file=self.bunny.cloudapis.get('push', 'push_certificate_file'))
+        con = self.ios_session.get_connection("push_production", cert_file=self.ios_push_certificate_file)
         message = Message(tokens, alert=message, badge=1, sound='default')
 
         # Send the message.
@@ -90,7 +91,7 @@ class PushConsumer(BunnyConsumer):
         return return_message
 
     def send_android_push_notifications(self, tokens, message):
-        gcm = GCM(self.bunny.cloudapis.get('push', 'android_push_api_key'))
+        gcm = GCM(self.android_push_api_key)
 
         # Construct (key => scalar) payload. do not use nested structures.
         data = {'message': message, 'int': 10}

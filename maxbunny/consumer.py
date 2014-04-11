@@ -3,16 +3,27 @@ from gevent import getcurrent
 from gevent.hub import GreenletExit
 from gevent.pool import Pool
 from rabbitpy.exceptions import ConnectionResetException
+from maxclient.rest import RequestError
+from maxbunny.utils import get_message_uuid, send_requeue_traceback
 
 import gevent
 import logging
 import rabbitpy
+import traceback
+
+BUNNY_NO_DOMAIN = 0x01
 
 
-BUNNY_OK = 0x00
-BUNNY_CANCEL = 0x01
-BUNNY_REQUEUE = 0x02
-BUNNY_NO_DOMAIN = 0x04
+class BunnyMessageRequeue(Exception):
+    """
+        To be raised when a message has to be requeued
+    """
+
+
+class BunnyMessageCancel(Exception):
+    """
+        To be raised when a message has to be canceled
+    """
 
 
 class BunnyConsumer(object):
@@ -27,6 +38,7 @@ class BunnyConsumer(object):
         # Setup logger
         self.logger = self.configure_logger()
         self.root_logger = logging.getLogger('bunny')
+        self.requeued = []
 
     def __configure__(self, runner):
         self.channel = runner.conn.channel()
@@ -125,20 +137,68 @@ class BunnyConsumer(object):
             self.logger.warning('Exiting Worker {}'.format(id(getcurrent())))
             self.restart()
 
+    def ack(self, message):
+        message.ack()
+
+    def nack(self, message, reason):
+        uuid = get_message_uuid(message)
+        self.logger.warning('Message {} droped, reason: {}'.format(uuid, reason))
+        if uuid in self.requeued:
+            self.requeued.remove(uuid)
+        message.nack()
+
+    def requeue(self, message, error, reason):
+        """
+            Requeues messages with a uuid. Logs and notifies the first requeuing
+            of each message to specified mail. Messages without uuid will be canceled
+        """
+        uuid = get_message_uuid(message)
+        if uuid is None:
+            self.logger.warning('Cannot requeue message without UUID, canceling)')
+            message.nack()
+        else:
+            if uuid not in self.requeued:
+                self.logger.warning('Message {} reueued, reason: {}'.format(uuid, reason + error.message))
+                error_log = traceback.format_exc()
+                mail = send_requeue_traceback(
+                    'carlesba@gmail.com',
+                    self.name,
+                    error_log,
+                    message)
+                print mail
+                self.requeued.append(uuid)
+            message.nack(requeue=True)
+
     def __process__(self, message):
         """
             Common functionality for processing messages
             Processes the message and acks it
         """
-        result = self.process(message)
-        if result == BUNNY_OK:
-            message.ack()
-        elif result == BUNNY_CANCEL:
-            self.logger.warning('Message droped')
-            message.nack()
-        elif result == BUNNY_REQUEUE:
-            self.logger.warning('Message requeued')
-            message.nack(requeue=True)
+        try:
+            self.process(message)
+        except BunnyMessageCancel as error:
+            self.nack(message, error.message)
+
+        except BunnyMessageRequeue as error:
+            self.requeue(message, error.message)
+
+        # Catch maxclient exceptions
+        except RequestError as error:
+            # Requeue messages on max server malfunction [5xx]
+            if error.code / 100 == 5:
+                self.requeue(message, error, 'Max server error: ')
+            # Cancel message on any other error code
+            else:
+                self.nack(message, error, 'Max server error: ')
+        # Requeue messages on unknown consumer failures
+        except Exception as error:
+            self.requeue(message, error, 'Consumer failure: ',)
+        else:
+            # If message successfull, remove it from requeued
+            # (assuming it MAY have been requeued some time ago)
+            uuid = get_message_uuid(message)
+            if uuid in self.requeued:
+                self.requeued.remove(uuid)
 
     def process(self, message):
         """

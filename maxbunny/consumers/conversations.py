@@ -1,12 +1,7 @@
 # -*- coding: utf-8 -*-
-from maxbunny.consumer import BUNNY_CANCEL
-from maxbunny.consumer import BUNNY_OK
-from maxbunny.consumer import BUNNY_REQUEUE
 from maxbunny.consumer import BUNNY_NO_DOMAIN
 from maxbunny.consumer import BunnyConsumer
 from maxcarrot.message import RabbitMessage
-
-from maxclient.rest import RequestError
 
 import re
 
@@ -27,15 +22,8 @@ class ConversationsConsumer(BunnyConsumer):
         client = self.clients[domain]
         endpoint = client.people[message.user['username']].conversations[conversation_id].messages
 
-        try:
-            endpoint.post(object_content=message.data['text'])
-        except RequestError as error:
-            if error.code / 100 == 5:
-                return BUNNY_REQUEUE
-            else:
-                return BUNNY_CANCEL
-        else:
-            return BUNNY_OK
+        endpoint.post(object_content=message.data['text'])
+        return
 
 
 __consumer__ = ConversationsConsumer
