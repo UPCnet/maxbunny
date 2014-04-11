@@ -56,16 +56,18 @@ class PushConsumer(BunnyConsumer):
         if self.ios_push_certificate_file and tokens_by_platform.get('iOS', []):
             try:
                 self.send_ios_push_notifications(tokens_by_platform['iOS'], '{}: {}'.format(message['user']['username'], message['data']['text']))
-            except Exception, errmsg:
-                return_message = "iOS device push failed: {0}, reason: {1}".format(tokens_by_platform['iOS'], errmsg)
+            except Exception as error:
+                exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.name)
+                return_message = "iOS device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['iOS'], exception_class, error.message)
                 self.logger.info(return_message)
                 raise BunnyMessageCancel()
 
         if self.android_push_api_key and tokens_by_platform.get('android', []):
             try:
                 self.send_android_push_notifications(tokens_by_platform['android'], unpacked_message)
-            except Exception, errmsg:
-                return_message = "Android device push failed: {0}, reason: {1}".format(tokens_by_platform['android'], errmsg)
+            except Exception as error:
+                exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.name)
+                return_message = "Android device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['android'], exception_class, error.message)
                 self.logger.info(return_message)
                 raise BunnyMessageCancel()
 
