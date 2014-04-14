@@ -196,6 +196,8 @@ class BunnyConsumer(object):
         else:
             # If message successfull, remove it from requeued
             # (assuming it MAY have been requeued some time ago)
+            # and acknowledge it
+            self.ack(message)
             uuid = get_message_uuid(message)
             if uuid in self.requeued:
                 self.requeued.remove(uuid)

@@ -31,11 +31,12 @@ class TweetyConsumer(BunnyConsumer):
     def users(self):
         return self.get_twitter_enabled_users()
 
+    @property
     def global_hashtags(self):
         """
             Max each maxserver_id by it's configured global hashtag
         """
-        self.clients.client_ids_by_hashtag()
+        return self.clients.client_ids_by_hashtag()
 
     def process(self, rabbitpy_message):
         """
@@ -63,7 +64,7 @@ class TweetyConsumer(BunnyConsumer):
             if len(context_assigned) > 1:
                 self.logger.warning(u"tweet {stid} from {author} eligible context found in more than one context in the same max server.".format(**twitter_message))
 
-            return self.post_message_to_max_as_context(context_assigned, twitter_message)
+            self.post_message_to_max_as_context(context_assigned, twitter_message)
 
         # We have a tweet from a tracked hashtag
         else:
@@ -90,7 +91,7 @@ class TweetyConsumer(BunnyConsumer):
             # until further notice. In the future, it will be posted as a
             # 'timeline' message from the sender.
             if len(message_hastags) == 0:
-                return_message = u"(501) tweet {stid} from {author} has only one (global) hashtag.".format(**twitter_message)
+                return_message = u"tweet {stid} from {author} has only one (global) hashtag.".format(**twitter_message)
                 raise BunnyMessageCancel(return_message)
 
             registered_hashtags = self.get_all_contexts_by_hashtag(self.contexts)
@@ -117,10 +118,11 @@ class TweetyConsumer(BunnyConsumer):
                     raise BunnyMessageCancel(return_message)
 
                 username = self.get_username_from_twitter_username(maxserver, author)
-                return self.post_message_to_max(context_assigned, username, twitter_message)
+                self.post_message_to_max(context_assigned, username, twitter_message)
             else:
                 return_message = u"Discarding tweet {} from {} with unknown (probably debug) global hashtag found in [{}]".format(twitter_message.get('stid'), twitter_message.get('author'), ', '.join(message_hastags))
                 raise BunnyMessageCancel()
+        return
 
     def get_twitter_enabled_contexts(self):
         contexts = {}
@@ -185,26 +187,22 @@ class TweetyConsumer(BunnyConsumer):
         """ Post message to the context of each MAX (ideally only one context in
             one MAX)
         """
-        return_messages = []
         for context in context_assigned:
             endpoint = self.clients[context.get('maxserver')].contexts[context.get('url')].activities
             endpoint.post(object_content=message.get('message'), generator=GENERATOR_ID)
             self.logger.info(u"Successfully posted tweet {} from {} as context {}".format(message.get('stid'), message.get('author'), context.get('url')))
-            return
 
-        return return_messages
+        return
 
     def post_message_to_max(self, context_assigned, username, message):
         """ Post message to the context of each MAX (ideally only one context in
             one MAX)
         """
-        return_messages = []
         for context in context_assigned:
             endpoint = self.clients[context.get('maxserver')].people[username].activities
-            endpoint.post(object_content=message.get('message'), contexts=[context.get('url')], generator=GENERATOR_ID)
+            endpoint.post(object_content=message.get('message'), contexts=[{'url': context.get('url'), 'objectType': 'context'}], generator=GENERATOR_ID)
             self.logger.info(u"Successfully posted tweet {} from {} to context {}".format(message.get('stid'), message.get('author'), context.get('url')))
-            return
 
-        return return_messages
+        return
 
 __consumer__ = TweetyConsumer

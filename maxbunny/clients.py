@@ -15,12 +15,12 @@ class MaxClientsWrapper(object):
         self.default_domain = default_domain
 
     def get_all(self):
-        for instance_id, data in self.instances:
+        for instance_id, data in self.maxclients.items():
             yield instance_id, data['client']
 
     def client_ids_by_hashtag(self):
         mapping = {}
-        for instance_id, data in self.instances.items():
+        for instance_id, data in self.maxclients.items():
             mapping[data['hashtag']] = instance_id
         return mapping
 
