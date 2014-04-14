@@ -14,6 +14,16 @@ class MaxClientsWrapper(object):
         self.load_instances()
         self.default_domain = default_domain
 
+    def get_all(self):
+        for instance_id, data in self.instances:
+            yield instance_id, data['client']
+
+    def client_ids_by_hashtag(self):
+        mapping = {}
+        for instance_id, data in self.instances.items():
+            mapping[data['hashtag']] = instance_id
+        return mapping
+
     def load_instances(self):
         """
             Loads instances and parses all maxservers. For each maxserver
@@ -26,7 +36,11 @@ class MaxClientsWrapper(object):
             maxclient = MaxClient(url=self.instances.get(maxserver, 'server'), oauth_server=self.instances.get(maxserver, 'oauth_server'))
             maxclient.setActor(self.instances.get(maxserver, 'restricted_user'))
             maxclient.setToken(self.instances.get(maxserver, 'restricted_user_token'))
-            self.maxclients[maxserver.lstrip('max_')] = maxclient
+            maxclient_data = {
+                "client": maxclient,
+                "hashtag": self.instances.get(maxserver, 'hashtag')
+            }
+            self.maxclients[maxserver.lstrip('max_')] = maxclient_data
 
     def __getitem__(self, key):
         """
@@ -41,4 +55,4 @@ class MaxClientsWrapper(object):
             self.load_instances()
             maxclient = self.maxclients.get(client_domain_key, None)
 
-        return maxclient
+        return maxclient['client']
