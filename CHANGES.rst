@@ -1,11 +1,11 @@
 Changelog
 =========
 
-1.4.2 (unreleased)
+4.0.0 (2014-04-15)
 ------------------
 
-- Nothing changed yet.
-
+* New version of maxbunny using gevent & rabbitpy WIP [Carles Bruguera]
+* Reread config file if asked for unknown client [Carles Bruguera]
 
 1.4.1 (2013-11-11)
 ------------------
