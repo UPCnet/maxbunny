@@ -3,6 +3,7 @@ from gevent import getcurrent
 from gevent.hub import GreenletExit
 from gevent.pool import Pool
 from rabbitpy.exceptions import ConnectionResetException
+from rabbitpy.exceptions import AMQPNotFound
 from maxclient.rest import RequestError
 from maxbunny.utils import get_message_uuid, send_requeue_traceback
 
@@ -129,6 +130,10 @@ class BunnyConsumer(object):
                 gevent.sleep(ref=True)
 
         # Stop when required by runner
+        except AMQPNotFound as exc:
+            self.logger.warning('Exiting Worker {}, {}'.format(id(getcurrent()), exc.message.reply_text))
+            self.stop()
+            self.empty_pool()
         except GreenletExit:
             self.logger.info('Exiting Worker {}'.format(id(getcurrent())))
             self.stop_consuming()
@@ -136,6 +141,8 @@ class BunnyConsumer(object):
             self.root_logger.warning('Rabbit Connection Reset')
             self.logger.warning('Exiting Worker {}'.format(id(getcurrent())))
             self.restart()
+        except Exception as exc:
+            import ipdb;ipdb.set_trace()
 
     def ack(self, message):
         message.ack()

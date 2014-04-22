@@ -11,6 +11,7 @@ requires = [
     'maxclient',
     'apns_client',
     'gcm-client',
+    'rabbitpy',
     'gevent'
 ]
 

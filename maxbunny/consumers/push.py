@@ -29,22 +29,29 @@ class PushConsumer(BunnyConsumer):
         unpacked_message = rabbitpy_message.json()
         message = RabbitMessage.unpack(rabbitpy_message.json())
 
-        conversation_id = re.search(r'(\w+).messages', rabbitpy_message.routing_key).groups()[0]
-        domain = message.get('domain', BUNNY_NO_DOMAIN)
-        client = self.clients[domain]
+        # messages from a conversation
+        if message['object'] == 'message':
+            conversation_id = re.search(r'(\w+).messages', rabbitpy_message.routing_key).groups()[0]
+            domain = message.get('domain', BUNNY_NO_DOMAIN)
+            client = self.clients[domain]
 
-        # #print 'push', self.id, message.body
-        # if message.body in ['3', '6']:
-        #     return BUNNY_REQUEUE
-        # if message.body == '0':
-        #     return BUNNY_CANCEL
-        # return BUNNY_OK
+            if conversation_id is None:
+                self.logger.info('The message received is not from a valid conversation')
+                return BunnyMessageCancel()
 
-        if conversation_id is None:
-            self.logger.info('The message received is not a valid conversation')
-            return BunnyMessageCancel()
+            tokens = client.conversations[conversation_id].tokens.get()
 
-        tokens = client.conversations[conversation_id].tokens.get()
+        # messages from a context
+        else:
+            context_id = rabbitpy_message.routing_key
+            domain = message.get('domain', BUNNY_NO_DOMAIN)
+            client = self.clients[domain]
+
+            if context_id is None:
+                self.logger.info('The activity received is not from a valid context')
+                return BunnyMessageCancel()
+
+            tokens = client.contexts[context_id].tokens.get()
 
         tokens_by_platform = {}
 
