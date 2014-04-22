@@ -64,7 +64,6 @@ class PushConsumer(BunnyConsumer):
             try:
                 self.send_ios_push_notifications(tokens_by_platform['iOS'], '{}: {}'.format(message['user']['username'], message['data']['text']))
             except Exception as error:
-                import ipdb;ipdb.set_trace()
                 exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.__name__)
                 return_message = "iOS device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['iOS'], exception_class, error.message)
                 self.logger.info(return_message)
