@@ -22,7 +22,6 @@ except ImportError:
     def wait_readwrite(fd, timeout):
         return select.select([fd], [fd], [fd], timeout)
 
-
 class Connection(object):
 
     def __init__(self, context, sock):
@@ -78,24 +77,24 @@ class Connection(object):
                     return 0
                 raise
 
-    def recv(self, bufsiz, flags=0):
-        pending = self._connection.pending()
-        if pending:
-            return self._connection.recv(min(pending, bufsiz))
-        while True:
-            try:
-                return self._connection.recv(bufsiz, flags)
-            except (WantReadError, WantX509LookupError):
-                sys.exc_clear()
-                wait_read(self._sock.fileno(), timeout=self._timeout)
-            except WantWriteError:
-                sys.exc_clear()
-                wait_write(self._sock.fileno(), timeout=self._timeout)
-            except ZeroReturnError:
-                return ''
+#    def recv(self, bufsiz, flags=0):
+#        pending = self._connection.pending()
+#        if pending:
+#            return self._connection.recv(min(pending, bufsiz))
+#        while True:
+#            try:
+#                return self._connection.recv(bufsiz, flags)
+#            except (WantReadError, WantX509LookupError):
+#                sys.exc_clear()
+#                wait_read(self._sock.fileno(), timeout=self._timeout)
+#            except WantWriteError:
+#                sys.exc_clear()
+#                wait_write(self._sock.fileno(), timeout=self._timeout)
+#            except ZeroReturnError:
+#                return ''
 
-    def read(self, bufsiz, flags=0):
-        return self.recv(bufsiz, flags)
+#    def read(self, bufsiz, flags=0):
+#        return self.recv(bufsiz, flags)
 
     def write(self, buf, flags=0):
         return self.sendall(buf, flags)

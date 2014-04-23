@@ -10,7 +10,7 @@ from maxbunny.consumer import BunnyConsumer, BunnyMessageCancel
 from maxcarrot.message import RabbitMessage
 
 import re
-
+from copy import deepcopy
 
 class PushConsumer(BunnyConsumer):
     """
@@ -26,8 +26,8 @@ class PushConsumer(BunnyConsumer):
     def process(self, rabbitpy_message):
         """
         """
-        unpacked_message = rabbitpy_message.json()
-        message = RabbitMessage.unpack(rabbitpy_message.json())
+        packed_message = rabbitpy_message.json()
+        message = RabbitMessage.unpack(packed_message)
 
         # messages from a conversation
         if message['object'] == 'message':
@@ -62,7 +62,8 @@ class PushConsumer(BunnyConsumer):
 
         if self.ios_push_certificate_file and tokens_by_platform.get('iOS', []):
             try:
-                self.send_ios_push_notifications(tokens_by_platform['iOS'], '{}: {}'.format(message['user']['username'], message['data']['text']))
+		user_displayname = message['user'].get('displayname', message['user'].get('username', ''))
+                self.send_ios_push_notifications(tokens_by_platform['iOS'], '{}: {}'.format(user_displayname, message['data']['text']), packed_message)
             except Exception as error:
                 exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.__name__)
                 return_message = "iOS device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['iOS'], exception_class, error.message)
@@ -71,7 +72,7 @@ class PushConsumer(BunnyConsumer):
 
         if self.android_push_api_key and tokens_by_platform.get('android', []):
             try:
-                self.send_android_push_notifications(tokens_by_platform['android'], unpacked_message)
+                self.send_android_push_notifications(tokens_by_platform['android'], packed_message)
             except Exception as error:
                 exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.__name__)
                 return_message = "Android device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['android'], exception_class, error.message)
@@ -80,13 +81,23 @@ class PushConsumer(BunnyConsumer):
 
         return
 
-    def send_ios_push_notifications(self, tokens, message):
+    def send_ios_push_notifications(self, tokens, alert, message):
         con = self.ios_session.get_connection("push_production", cert_file=self.ios_push_certificate_file)
-        message = Message(tokens, alert=message, badge=1, sound='default')
 
+        extra = deepcopy(message)
+
+        if 'd' in extra:
+            del extra['d']
+        if 'g' in extra:
+            del extra['g']
+        if 'd' in extra['u']:
+            del extra['u']['d']
+
+        push_message = Message(tokens, alert=alert, badge=1, sound='default', extra=extra)
+        
         # Send the message.
         srv = APNs(con)
-        res = srv.send(message)
+        res = srv.send(push_message)
 
         # Check failures. Check codes in APNs reference docs.
         for token, reason in res.failed.items():
@@ -95,7 +106,7 @@ class PushConsumer(BunnyConsumer):
             tokens.remove(token)
             self.logger.info(return_message)
 
-        return_message = "[iOS] Successfully sent {} to {}.".format(message.alert, tokens)
+        return_message = "[iOS] Successfully sent {} to {}.".format(push_message.alert, tokens)
         self.logger.info(return_message)
         return return_message
 
