@@ -37,11 +37,11 @@ class ConversationsConsumer(BunnyConsumer):
             endpoint.post(
                 object_image_mimetype=message.data.get('mimetype', "image/jpeg"),
                 object_objectType='image',
-                object_content=message.data['text'],
+                object_content=message.data.get('text', ''),
                 upload_file_image=file_object
             )
         else:
-            endpoint.post(object_content=message.data['text'])
+            endpoint.post(object_content=message.data.get('text'))
         return
 
 

@@ -141,15 +141,17 @@ class BunnyConsumer(object):
             self.root_logger.warning('Rabbit Connection Reset')
             self.logger.warning('Exiting Worker {}'.format(id(getcurrent())))
             self.restart()
-        except Exception as exc:
-            import ipdb;ipdb.set_trace()
+#        except Exception as exc:
+#            self.root_logger.error('Crashed by unknown exception')
+#            self.logger.warning('Exiting Worker {}'.format(id(getcurrent())))
+#            self.restart()
 
     def ack(self, message):
         message.ack()
 
-    def nack(self, message, reason):
+    def nack(self, message, error, reason):
         uuid = get_message_uuid(message)
-        self.logger.warning('Message {} droped, reason: {}'.format(uuid, reason))
+        self.logger.warning('Message {} droped, reason: {}'.format(uuid, reason + error.message))
         if uuid in self.requeued:
             self.requeued.remove(uuid)
         message.nack()

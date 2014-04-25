@@ -13,11 +13,16 @@ FIND_HASHTAGS_REGEX = r'(\s|^)#{1}([\w\-\_\.%s]+)' % UNICODE_ACCEPTED_CHARS
 
 
 def send_requeue_traceback(email, consumer_name, traceback, rabbitpy_message):
+    message = RabbitMessage.unpack(rabbitpy_message.json())
+    if 'file' in message['data']:
+        message['data']['file'] = '< {} binary base64 data>'.format(len(message['data']['file']))
+    if 'image' in message['data']:
+        message['data']['image'] = '< {} binary base64 data>'.format(len(message['data']['image']))
     params = {
         'server': os.uname()[1],
         'routing_key': rabbitpy_message.routing_key,
         'consumer': consumer_name,
-        'message': json.dumps(RabbitMessage.unpack(rabbitpy_message.json()), indent=4),
+        'message': json.dumps(message),
         'traceback': traceback
     }
 
@@ -37,7 +42,7 @@ failed on consumer "{consumer}" with the following traceback:
 {traceback}
 
 """.format(**params)
-
+    print mail_body
     return mail_body
 
 
