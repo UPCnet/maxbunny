@@ -12,6 +12,7 @@ from maxcarrot.message import RabbitMessage
 import re
 from copy import deepcopy
 
+
 class PushConsumer(BunnyConsumer):
     """
     """
@@ -62,7 +63,7 @@ class PushConsumer(BunnyConsumer):
 
         if self.ios_push_certificate_file and tokens_by_platform.get('iOS', []):
             try:
-		user_displayname = message['user'].get('displayname', message['user'].get('username', ''))
+                user_displayname = message['user'].get('displayname', message['user'].get('username', ''))
                 self.send_ios_push_notifications(tokens_by_platform['iOS'], '{}: {}'.format(user_displayname, message['data']['text']), packed_message)
             except Exception as error:
                 exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.__name__)
@@ -94,7 +95,7 @@ class PushConsumer(BunnyConsumer):
             del extra['u']['d']
 
         push_message = Message(tokens, alert=alert, badge=1, sound='default', extra=extra)
-        
+
         # Send the message.
         srv = APNs(con)
         res = srv.send(push_message)
