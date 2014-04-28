@@ -35,10 +35,10 @@ class ConversationsConsumer(BunnyConsumer):
             binary_data = base64.b64decode(message.data.get(message_object_type))
             file_object = StringIO(binary_data)
             endpoint.post(
-                object_image_mimetype=message.data.get('mimetype', "image/jpeg"),
+                object_mimetype=message.data.get('mimetype', "image/jpeg"),
                 object_objectType='image',
                 object_content=message.data.get('text', ''),
-                upload_file_image=file_object
+                upload_file=file_object
             )
         else:
             endpoint.post(object_content=message.data.get('text'))
