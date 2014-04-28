@@ -186,10 +186,10 @@ class BunnyConsumer(object):
         try:
             self.process(message)
         except BunnyMessageCancel as error:
-            self.nack(message, error.message)
+            self.nack(message, error, error.message)
 
         except BunnyMessageRequeue as error:
-            self.requeue(message, error.message)
+            self.requeue(message, error, error.message)
 
         # Catch maxclient exceptions
         except RequestError as error:
