@@ -34,12 +34,16 @@ class ConversationsConsumer(BunnyConsumer):
         if message_object_type in ['image', 'file']:
             binary_data = base64.b64decode(message.data.get(message_object_type))
             file_object = StringIO(binary_data)
-            endpoint.post(
-                object_mimetype=message.data.get('mimetype', "image/jpeg"),
+            query = dict(
                 object_objectType='image',
-                object_content=message.data.get('text', ''),
                 upload_file=file_object
             )
+            object_content = message.data.get('text', '')
+            if object_content:
+                query['object_content'] = 'object_content'
+
+            endpoint.post(**query)
+
         else:
             endpoint.post(object_content=message.data.get('text'))
         return
