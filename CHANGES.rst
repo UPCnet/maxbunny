@@ -1,11 +1,20 @@
 Changelog
 =========
 
-4.0.1 (unreleased)
+4.0.1 (2014-05-08)
 ------------------
 
-- Nothing changed yet.
-
+* Log messages via exception [Carles Bruguera]
+* Propagate filename [Carles Bruguera]
+* Non-mandatory text field for image and file [Carles Bruguera]
+* Adapt to new file upload specification [Carles Bruguera]
+* Fix nack call [Carles Bruguera]
+* tune-up converastions posts with images [Carles Bruguera]
+* post messages with images and files [Carles Bruguera]
+* Fix SSL patch for recv() [Carles Bruguera]
+* Send extra data on ios payload [Carles Bruguera]
+* React to not found exceptions [Carles Bruguera]
+* Distinguish between activity or message in push delivery [Carles Bruguera]
 
 4.0.0 (2014-04-15)
 ------------------
