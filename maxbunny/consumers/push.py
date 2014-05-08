@@ -40,6 +40,9 @@ class PushConsumer(BunnyConsumer):
             domain = message.get('domain', BUNNY_NO_DOMAIN)
             client = self.clients[domain]
 
+            if client is None:
+                raise BunnyMessageCancel('Unknown domain {}'.format(domain))
+
             if conversation_id is None:
                 raise BunnyMessageCancel('The message received is not from a valid conversation')
 
@@ -50,6 +53,9 @@ class PushConsumer(BunnyConsumer):
             context_id = rabbitpy_message.routing_key
             domain = message.get('domain', BUNNY_NO_DOMAIN)
             client = self.clients[domain]
+
+            if client is None:
+                raise BunnyMessageCancel('Unknown domain {}'.format(domain))
 
             if context_id is None:
                 raise BunnyMessageCancel('The activity received is not from a valid context')

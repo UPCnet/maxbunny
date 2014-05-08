@@ -42,7 +42,6 @@ failed on consumer "{consumer}" with the following traceback:
 {traceback}
 
 """.format(**params)
-    print mail_body
     return mail_body
 
 

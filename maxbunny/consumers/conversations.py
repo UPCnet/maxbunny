@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from maxbunny.consumer import BUNNY_NO_DOMAIN
-from maxbunny.consumer import BunnyConsumer, BunnyMessageCancel
+from maxbunny.consumer import BunnyConsumer, BunnyMessageCancel, BunnyMessageRequeue
 from maxcarrot.message import RabbitMessage
 
 import re
@@ -21,7 +21,11 @@ class ConversationsConsumer(BunnyConsumer):
 
         conversation_id = re.search(r'(\w+).messages', rabbitpy_message.routing_key).groups()[0]
         domain = message.get('domain', BUNNY_NO_DOMAIN)
+
         client = self.clients[domain]
+        if client is None:
+            raise BunnyMessageCancel('Unknown domain {}'.format(domain))
+
         username = message.get('user', {}).get('username', None)
         if username is None:
             raise BunnyMessageCancel('Missing username in message')

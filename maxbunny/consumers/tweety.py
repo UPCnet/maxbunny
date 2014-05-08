@@ -122,7 +122,7 @@ class TweetyConsumer(BunnyConsumer):
             else:
                 return_message = u"Discarding tweet {} from {} with unknown (probably debug) global hashtag found in [{}]".format(twitter_message.get('stid'), twitter_message.get('author'), ', '.join(message_hastags))
                 raise BunnyMessageCancel()
-        return
+        raise BunnyMessageCancel()
 
     def get_twitter_enabled_contexts(self):
         contexts = {}

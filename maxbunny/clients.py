@@ -54,5 +54,7 @@ class MaxClientsWrapper(object):
             # reload maxservers from file and try it again
             self.load_instances()
             maxclient = self.maxclients.get(client_domain_key, None)
+            if maxclient is None:
+                return None
 
         return maxclient['client']

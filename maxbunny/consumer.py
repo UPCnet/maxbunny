@@ -149,14 +149,14 @@ class BunnyConsumer(object):
     def ack(self, message):
         message.ack()
 
-    def nack(self, message, error, reason):
+    def nack(self, message, error):
         uuid = get_message_uuid(message)
-        self.logger.warning('Message {} droped, reason: {}'.format(uuid, reason + error.message))
+        self.logger.warning('Message {} droped, reason: {}'.format(uuid, error.message))
         if uuid in self.requeued:
             self.requeued.remove(uuid)
         message.nack()
 
-    def requeue(self, message, error, reason):
+    def requeue(self, message, error):
         """
             Requeues messages with a uuid. Logs and notifies the first requeuing
             of each message to specified mail. Messages without uuid will be canceled
@@ -167,14 +167,14 @@ class BunnyConsumer(object):
             message.nack()
         else:
             if uuid not in self.requeued:
-                self.logger.warning('Message {} reueued, reason: {}'.format(uuid, reason + error.message))
+                self.logger.warning('Message {} reueued, reason: {}'.format(uuid, error.message))
                 error_log = traceback.format_exc()
                 mail = send_requeue_traceback(
                     'carlesba@gmail.com',
                     self.name,
                     error_log,
                     message)
-                print mail
+                #print mail
                 self.requeued.append(uuid)
             message.nack(requeue=True)
 
@@ -186,22 +186,25 @@ class BunnyConsumer(object):
         try:
             self.process(message)
         except BunnyMessageCancel as error:
-            self.nack(message, error, error.message)
+            self.nack(message, error)
 
         except BunnyMessageRequeue as error:
-            self.requeue(message, error, error.message)
+            self.requeue(message, error)
 
         # Catch maxclient exceptions
         except RequestError as error:
             # Requeue messages on max server malfunction [5xx]
             if error.code / 100 == 5:
-                self.requeue(message, error, 'Max server error: ')
+                error.message = 'Max server error: ' + error.message
+                self.requeue(message, error)
             # Cancel message on any other error code
             else:
-                self.nack(message, error, 'Max server error: ')
+                error.message = 'Max server error: ' + error.message
+                self.nack(message, error)
         # Requeue messages on unknown consumer failures
         except Exception as error:
-            self.requeue(message, error, 'Consumer failure: ',)
+            error.message = 'Consumer failure: ' + error.message
+            self.requeue(message, error)
         else:
             # If message successfull, remove it from requeued
             # (assuming it MAY have been requeued some time ago)
