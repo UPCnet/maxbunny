@@ -30,31 +30,37 @@ class PushConsumer(BunnyConsumer):
         packed_message = rabbitpy_message.json()
         message = RabbitMessage.unpack(packed_message)
 
+        message_object = message.get('object', None)
+        tokens = None
+        tokens_by_platform = {}
+
         # messages from a conversation
-        if message['object'] == 'message':
+        if message_object == 'message':
             conversation_id = re.search(r'(\w+).messages', rabbitpy_message.routing_key).groups()[0]
             domain = message.get('domain', BUNNY_NO_DOMAIN)
             client = self.clients[domain]
 
             if conversation_id is None:
-                self.logger.info('The message received is not from a valid conversation')
-                return BunnyMessageCancel()
+                raise BunnyMessageCancel('The message received is not from a valid conversation')
 
             tokens = client.conversations[conversation_id].tokens.get()
 
         # messages from a context
-        else:
+        elif message_object == 'activity':
             context_id = rabbitpy_message.routing_key
             domain = message.get('domain', BUNNY_NO_DOMAIN)
             client = self.clients[domain]
 
             if context_id is None:
-                self.logger.info('The activity received is not from a valid context')
-                return BunnyMessageCancel()
+                raise BunnyMessageCancel('The activity received is not from a valid context')
 
             tokens = client.contexts[context_id].tokens.get()
 
-        tokens_by_platform = {}
+        else:
+            raise BunnyMessageCancel('The activity received has an unknown object type')
+
+        if tokens is None:
+            raise BunnyMessageCancel('No tokens received')
 
         for token in tokens:
             # TODO: On production, not send notification to sender
@@ -68,8 +74,7 @@ class PushConsumer(BunnyConsumer):
             except Exception as error:
                 exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.__name__)
                 return_message = "iOS device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['iOS'], exception_class, error.message)
-                self.logger.info(return_message)
-                raise BunnyMessageCancel()
+                raise BunnyMessageCancel(return_message)
 
         if self.android_push_api_key and tokens_by_platform.get('android', []):
             try:
@@ -77,8 +82,7 @@ class PushConsumer(BunnyConsumer):
             except Exception as error:
                 exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.__name__)
                 return_message = "Android device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['android'], exception_class, error.message)
-                self.logger.info(return_message)
-                raise BunnyMessageCancel()
+                raise BunnyMessageCancel(return_message)
 
         return
 
