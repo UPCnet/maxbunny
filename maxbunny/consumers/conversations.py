@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from maxbunny.consumer import BUNNY_NO_DOMAIN
-from maxbunny.consumer import BunnyConsumer, BunnyMessageCancel, BunnyMessageRequeue
+from maxbunny.consumer import BunnyConsumer, BunnyMessageCancel
 from maxcarrot.message import RabbitMessage
 
 import re
@@ -24,7 +24,21 @@ class ConversationsConsumer(BunnyConsumer):
 
         client = self.clients[domain]
         if client is None:
-            raise BunnyMessageCancel('Unknown domain {}'.format(domain))
+            ### START PROVISIONAL WORKAROUND
+
+            for clientid, clientwrapper in self.clients.maxclients.items():
+                try:
+                    clientwrapper.people[message.user['username']].conversations[conversation_id]()
+                except:
+                    pass
+                else:
+                    client = clientwrapper
+
+            if client is None:
+                raise BunnyMessageCancel('Unknown domain {}'.format(domain))
+
+            ### END PROVISIONAL WORKAROUND
+            #raise BunnyMessageCancel('Unknown domain {}'.format(domain))
 
         username = message.get('user', {}).get('username', None)
         if username is None:
