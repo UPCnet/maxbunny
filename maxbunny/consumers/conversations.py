@@ -25,14 +25,13 @@ class ConversationsConsumer(BunnyConsumer):
         client = self.clients[domain]
         if client is None:
             ### START PROVISIONAL WORKAROUND
-
             for clientid, clientwrapper in self.clients.maxclients.items():
                 try:
-                    clientwrapper.people[message.user['username']].conversations[conversation_id]()
+                    clientwrapper['client'].people[message.user['username']].conversations[conversation_id]()
                 except:
                     pass
                 else:
-                    client = clientwrapper
+                    client = clientwrapper['client']
 
             if client is None:
                 raise BunnyMessageCancel('Unknown domain {}'.format(domain))
