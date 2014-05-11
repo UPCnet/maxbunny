@@ -41,7 +41,20 @@ class PushConsumer(BunnyConsumer):
             client = self.clients[domain]
 
             if client is None:
-                raise BunnyMessageCancel('Unknown domain {}'.format(domain))
+                ### START PROVISIONAL WORKAROUND
+                for clientid, clientwrapper in self.clients.maxclients.items():
+                    try:
+                        clientwrapper['client'].people[message.user['username']].conversations[conversation_id]()
+                    except:
+                        pass
+                    else:
+                        client = clientwrapper['client']
+
+                if client is None:
+                    raise BunnyMessageCancel('Unknown domain {}'.format(domain))
+
+                ### END PROVISIONAL WORKAROUND
+                #raise BunnyMessageCancel('Unknown domain {}'.format(domain))
 
             if conversation_id is None:
                 raise BunnyMessageCancel('The message received is not from a valid conversation')
@@ -55,7 +68,20 @@ class PushConsumer(BunnyConsumer):
             client = self.clients[domain]
 
             if client is None:
-                raise BunnyMessageCancel('Unknown domain {}'.format(domain))
+                ### START PROVISIONAL WORKAROUND
+                for clientid, clientwrapper in self.clients.maxclients.items():
+                    try:
+                        clientwrapper['client'].people[message.user['username']].conversations[conversation_id]()
+                    except:
+                        pass
+                    else:
+                        client = clientwrapper['client']
+
+                if client is None:
+                    raise BunnyMessageCancel('Unknown domain {}'.format(domain))
+
+                ### END PROVISIONAL WORKAROUND
+                #raise BunnyMessageCancel('Unknown domain {}'.format(domain))
 
             if context_id is None:
                 raise BunnyMessageCancel('The activity received is not from a valid context')
