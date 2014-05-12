@@ -1,11 +1,13 @@
 Changelog
 =========
 
-4.0.2 (unreleased)
+4.0.2 (2014-05-12)
 ------------------
 
-- Nothing changed yet.
-
+* Apply workaround to push consumer [Carles Bruguera]
+* Fix pick client [Carles Bruguera]
+* provisional workaround to search for correct domain [Carles Bruguera]
+* Better logging and error handling [Carles Bruguera]
 
 4.0.1 (2014-05-08)
 ------------------
