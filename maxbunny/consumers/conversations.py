@@ -22,12 +22,41 @@ class ConversationsConsumer(BunnyConsumer):
         conversation_id = re.search(r'(\w+).messages', rabbitpy_message.routing_key).groups()[0]
         domain = message.get('domain', BUNNY_NO_DOMAIN)
 
+        # determine message object type
+        message_object_type = 'note'
+        if 'image' in message.data:
+            message_object_type = 'image'
+        if 'file' in message.data:
+            message_object_type = 'file'
+
         client = self.clients[domain]
+        executed = False
         if client is None:
             ### START PROVISIONAL WORKAROUND
             for clientid, clientwrapper in self.clients.maxclients.items():
                 try:
-                    clientwrapper['client'].people[message.user['username']].conversations[conversation_id]()
+                    endpoint = clientwrapper['client'].people[message.user['username']].conversations[conversation_id].messages
+
+                    if message_object_type in ['image', 'file']:
+                        binary_data = base64.b64decode(message.data.get(message_object_type))
+                        file_object = StringIO(binary_data)
+                        query = dict(
+                            object_objectType=message_object_type,
+                            upload_file=file_object
+                        )
+                        object_content = message.data.get('text', '')
+                        if object_content:
+                            query['object_content'] = object_content
+
+                        object_filename = message.data.get('filename', '')
+                        if object_filename:
+                            query['object_filename'] = object_filename
+
+                        endpoint.post(**query)
+
+                    else:
+                        endpoint.post(object_content=message.data.get('text'))
+                    executed = True
                 except:
                     pass
                 else:
@@ -44,33 +73,27 @@ class ConversationsConsumer(BunnyConsumer):
             raise BunnyMessageCancel('Missing username in message')
         endpoint = client.people[message.user['username']].conversations[conversation_id].messages
 
-        # determine message object type
-        message_object_type = 'note'
-        if 'image' in message.data:
-            message_object_type = 'image'
-        if 'file' in message.data:
-            message_object_type = 'file'
+        if not executed:
+            if message_object_type in ['image', 'file']:
+                binary_data = base64.b64decode(message.data.get(message_object_type))
+                file_object = StringIO(binary_data)
+                query = dict(
+                    object_objectType=message_object_type,
+                    upload_file=file_object
+                )
+                object_content = message.data.get('text', '')
+                if object_content:
+                    query['object_content'] = object_content
 
-        if message_object_type in ['image', 'file']:
-            binary_data = base64.b64decode(message.data.get(message_object_type))
-            file_object = StringIO(binary_data)
-            query = dict(
-                object_objectType=message_object_type,
-                upload_file=file_object
-            )
-            object_content = message.data.get('text', '')
-            if object_content:
-                query['object_content'] = object_content
+                object_filename = message.data.get('filename', '')
+                if object_filename:
+                    query['object_filename'] = object_filename
 
-            object_filename = message.data.get('filename', '')
-            if object_filename:
-                query['object_filename'] = object_filename
+                endpoint.post(**query)
 
-            endpoint.post(**query)
-
-        else:
-            endpoint.post(object_content=message.data.get('text'))
-        return
+            else:
+                endpoint.post(object_content=message.data.get('text'))
+            return
 
 
 __consumer__ = ConversationsConsumer

@@ -34,6 +34,8 @@ class PushConsumer(BunnyConsumer):
         tokens = None
         tokens_by_platform = {}
 
+        executed = False
+
         # messages from a conversation
         if message_object == 'message':
             conversation_id = re.search(r'(\w+).messages', rabbitpy_message.routing_key).groups()[0]
@@ -44,7 +46,7 @@ class PushConsumer(BunnyConsumer):
                 ### START PROVISIONAL WORKAROUND
                 for clientid, clientwrapper in self.clients.maxclients.items():
                     try:
-                        clientwrapper['client'].people[message.user['username']].conversations[conversation_id]()
+                        client.conversations[conversation_id].tokens.get()
                     except:
                         pass
                     else:
@@ -58,8 +60,8 @@ class PushConsumer(BunnyConsumer):
 
             if conversation_id is None:
                 raise BunnyMessageCancel('The message received is not from a valid conversation')
-
-            tokens = client.conversations[conversation_id].tokens.get()
+            if not executed:
+                tokens = client.conversations[conversation_id].tokens.get()
 
         # messages from a context
         elif message_object == 'activity':
@@ -71,7 +73,7 @@ class PushConsumer(BunnyConsumer):
                 ### START PROVISIONAL WORKAROUND
                 for clientid, clientwrapper in self.clients.maxclients.items():
                     try:
-                        clientwrapper['client'].people[message.user['username']].conversations[conversation_id]()
+                        tokens = client.contexts[context_id].tokens.get()
                     except:
                         pass
                     else:
