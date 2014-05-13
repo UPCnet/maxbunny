@@ -6,6 +6,8 @@ from maxcarrot.message import RabbitMessage
 import re
 from StringIO import StringIO
 import base64
+import rabbitpy
+import json
 
 
 class ConversationsConsumer(BunnyConsumer):
@@ -52,10 +54,10 @@ class ConversationsConsumer(BunnyConsumer):
                         if object_filename:
                             query['object_filename'] = object_filename
 
-                        endpoint.post(**query)
+                        activity = endpoint.post(**query)
 
                     else:
-                        endpoint.post(object_content=message.data.get('text'))
+                        activity = endpoint.post(object_content=message.data.get('text'))
                     executed = True
                 except:
                     pass
@@ -89,11 +91,34 @@ class ConversationsConsumer(BunnyConsumer):
                 if object_filename:
                     query['object_filename'] = object_filename
 
-                endpoint.post(**query)
+                activity = endpoint.post(**query)
 
             else:
-                endpoint.post(object_content=message.data.get('text'))
-            return
+                activity = endpoint.post(object_content=message.data.get('text'))
+
+        # if we reached here, message was succesfully delivered so notify it
+
+        ack_message = RabbitMessage()
+        ack_message.prepare()
+        ack_message.update({
+            "uuid": message.uuid,
+            "data": message.data,
+            "user": message.user,
+            "published": message.published,
+            "action": "ack",
+            "object": "message",
+            "source": "maxbunny",
+            "version": "4.0.3",
+        })
+
+        message['data']['id'] = activity['id']
+        if domain is not BUNNY_NO_DOMAIN:
+            ack_message['domain'] = domain
+
+        str_message = json.dumps(ack_message.packed)
+        notification_message = rabbitpy.Message(self.channel, str_message)
+        conversations_exchange = rabbitpy.Exchange(self.channel, 'conversations', durable=True, exchange_type='topic')
+        notification_message.publish(conversations_exchange, routing_key='{}.notifications'.format(conversation_id))
 
 
 __consumer__ = ConversationsConsumer

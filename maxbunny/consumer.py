@@ -11,6 +11,7 @@ import gevent
 import logging
 import rabbitpy
 import traceback
+import json
 
 BUNNY_NO_DOMAIN = 0x01
 
