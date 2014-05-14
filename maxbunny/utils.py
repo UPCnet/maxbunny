@@ -5,10 +5,11 @@ import ConfigParser
 import os
 import re
 import json
+import logging
 
+exceptions = logging.getLogger('requeues')
 
 UNICODE_ACCEPTED_CHARS = u'áéíóúàèìòùïöüçñ'
-
 FIND_HASHTAGS_REGEX = r'(\s|^)#{1}([\w\-\_\.%s]+)' % UNICODE_ACCEPTED_CHARS
 
 
@@ -42,6 +43,8 @@ failed on consumer "{consumer}" with the following traceback:
 {traceback}
 
 """.format(**params)
+    exception_header = '\n' + '=' * 80 + '\nREQUEUE EXCEPTION LOG\n\n'
+    exceptions.debug(exception_header + mail_body)
     return mail_body
 
 
