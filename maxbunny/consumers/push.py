@@ -46,11 +46,12 @@ class PushConsumer(BunnyConsumer):
                 ### START PROVISIONAL WORKAROUND
                 for clientid, clientwrapper in self.clients.maxclients.items():
                     try:
-                        client.conversations[conversation_id].tokens.get()
+                        result = clientwrapper['client'].conversations[conversation_id].tokens.get()
                     except:
                         pass
                     else:
-                        client = clientwrapper['client']
+                        if result is not None:
+                            client = clientwrapper['client']
 
                 if client is None:
                     raise BunnyMessageCancel('Unknown domain {}'.format(domain))
@@ -73,11 +74,12 @@ class PushConsumer(BunnyConsumer):
                 ### START PROVISIONAL WORKAROUND
                 for clientid, clientwrapper in self.clients.maxclients.items():
                     try:
-                        tokens = client.contexts[context_id].tokens.get()
+                        tokens = clientwrapper['client'].contexts[context_id].tokens.get()
                     except:
                         pass
                     else:
-                        client = clientwrapper['client']
+                        if tokens is not None:
+                            client = clientwrapper['client']
 
                 if client is None:
                     raise BunnyMessageCancel('Unknown domain {}'.format(domain))
@@ -87,8 +89,8 @@ class PushConsumer(BunnyConsumer):
 
             if context_id is None:
                 raise BunnyMessageCancel('The activity received is not from a valid context')
-
-            tokens = client.contexts[context_id].tokens.get()
+            if not executed:
+                tokens = client.contexts[context_id].tokens.get()
 
         else:
             raise BunnyMessageCancel('The activity received has an unknown object type')
