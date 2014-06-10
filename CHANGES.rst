@@ -1,11 +1,13 @@
 Changelog
 =========
 
-4.0.3 (unreleased)
+4.0.3 (2014-06-10)
 ------------------
 
-- Nothing changed yet.
-
+* Incorporate production patch [Carles Bruguera]
+* Save requeue exceptions on a disk log [Carles Bruguera]
+* requeue conversation messages to push [Carles Bruguera]
+* Fix temporary fix ¬_¬ ... [Carles Bruguera]
 
 4.0.2 (2014-05-12)
 ------------------
