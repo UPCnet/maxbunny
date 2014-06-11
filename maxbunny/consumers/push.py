@@ -38,7 +38,7 @@ class PushConsumer(BunnyConsumer):
 
         # messages from a conversation
         if message_object == 'message':
-            conversation_id = re.search(r'(\w+).messages', rabbitpy_message.routing_key).groups()[0]
+            conversation_id = re.search(r'(\w+).(?:messages|notifications)', rabbitpy_message.routing_key).groups()[0]
             domain = message.get('domain', BUNNY_NO_DOMAIN)
             client = self.clients[domain]
 
