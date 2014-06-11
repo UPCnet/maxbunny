@@ -1,11 +1,10 @@
 Changelog
 =========
 
-4.0.4 (unreleased)
+4.0.4 (2014-06-11)
 ------------------
 
-- Nothing changed yet.
-
+* Be aware of messages from notifications [Carles Bruguera]
 
 4.0.3 (2014-06-10)
 ------------------
