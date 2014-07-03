@@ -96,6 +96,14 @@ class ConversationsConsumer(BunnyConsumer):
             else:
                 activity = endpoint.post(object_content=message.data.get('text'))
 
+        #Activity post returned None, so user or conversation was not found
+        if activity is None:
+            try:
+                message = json.loads(client.last_response)['error_description']
+            except:
+                message = "User or conversation not found"
+            raise BunnyMessageCancel(message)
+
         # if we reached here, message was succesfully delivered so notify it
 
         ack_message = RabbitMessage()
