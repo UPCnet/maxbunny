@@ -75,7 +75,12 @@ class PushConsumer(BunnyConsumer):
         for token in tokens:
             # TODO: On production, not send notification to sender
             # if token.get('username') != message.get('user', {}).get('username'):
-            tokens_by_platform.setdefault(token.get('platform'), []).append(token.get('token'))
+            tokens_by_platform.setdefault(token.get('platform'), [])
+
+            # Add the token if it's not already in the list
+            # use case: two users within a conversation, both logged in the same device. Shit happens
+            if token.get('token') not in tokens_by_platform[token.get('platform')]:
+                tokens_by_platform[token.get('platform')].append(token.get('token'))
 
         if self.ios_push_certificate_file and tokens_by_platform.get('iOS', []):
             try:
