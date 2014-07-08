@@ -74,7 +74,7 @@ class PushConsumer(BunnyConsumer):
 
         for token in tokens:
             # TODO: On production, not send notification to sender
-            # if token.get('username') != self.message.get('username'):
+            # if token.get('username') != message.get('user', {}).get('username'):
             tokens_by_platform.setdefault(token.get('platform'), []).append(token.get('token'))
 
         if self.ios_push_certificate_file and tokens_by_platform.get('iOS', []):

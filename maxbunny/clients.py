@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from maxclient.wsgi import MaxClient
+from maxbunny import BUNNY_NO_DOMAIN
 
 
 class MaxClientsWrapper(object):
@@ -45,7 +46,8 @@ class MaxClientsWrapper(object):
         """
             Retrieves a specific maxserver client. Returns None if not found
         """
-        maxclient = self.maxclients.get(key, None)
+        client_domain_key = self.default_domain if key is BUNNY_NO_DOMAIN else key
+        maxclient = self.maxclients.get(client_domain_key, None)
 
         # If no maxclient found
         if maxclient is None:
