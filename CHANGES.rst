@@ -1,11 +1,14 @@
 Changelog
 =========
 
-4.0.5 (unreleased)
+4.0.5 (2014-07-08)
 ------------------
 
-- Nothing changed yet.
-
+* Send notification ack from users publish exchange [Carles Bruguera]
+* Remove domain woraround [Carles Bruguera]
+* Better processing of messages without domain [Carles Bruguera]
+* Send notification to user publish exchange, to use binding filters [Carles Bruguera]
+* Cancel message if invalid conversation [Carles Bruguera]
 
 4.0.4 (2014-06-11)
 ------------------
