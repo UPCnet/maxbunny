@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from logging.config import fileConfig
 from maxcarrot.message import RabbitMessage
+from maxbunny import BUNNY_NO_DOMAIN
 import ConfigParser
 import os
 import re
@@ -11,6 +12,17 @@ exceptions = logging.getLogger('requeues')
 
 UNICODE_ACCEPTED_CHARS = u'áéíóúàèìòùïöüçñ'
 FIND_HASHTAGS_REGEX = r'(\s|^)#{1}([\w\-\_\.%s]+)' % UNICODE_ACCEPTED_CHARS
+
+
+def extract_domain(message):
+    domain = message.get('domain', '')
+    try:
+        domain = domain.strip()
+    except:
+        return BUNNY_NO_DOMAIN
+
+    domain = domain if domain else BUNNY_NO_DOMAIN
+    return domain
 
 
 def send_requeue_traceback(email, consumer_name, traceback, rabbitpy_message):

@@ -13,8 +13,6 @@ import rabbitpy
 import traceback
 import json
 
-BUNNY_NO_DOMAIN = 0x01
-
 
 class BunnyMessageRequeue(Exception):
     """

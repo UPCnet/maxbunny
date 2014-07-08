@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from maxbunny.utils import setup_logging
 
 import ConfigParser
 import argparse
@@ -10,15 +9,17 @@ import sys
 
 
 LOGGER = logging.getLogger('bunny')
-
+BUNNY_NO_DOMAIN = 0x01
 
 from maxbunny.runner import BunnyRunner
+from maxbunny.utils import setup_logging
 
 from OpenSSL import *
 from maxbunny.SSL import Connection
 
 mod = __import__('OpenSSL').SSL
 mod.Connection = Connection
+
 
 def main(argv=sys.argv, quiet=False):  # pragma: no cover
 

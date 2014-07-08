@@ -5,9 +5,9 @@ from apnsclient import Session
 from gcmclient import GCM
 from gcmclient import GCMAuthenticationError
 from gcmclient import JSONMessage
-from maxbunny.consumer import BUNNY_NO_DOMAIN
 from maxbunny.consumer import BunnyConsumer, BunnyMessageCancel
 from maxcarrot.message import RabbitMessage
+from maxbunny.utils import extract_domain
 
 import re
 from copy import deepcopy
@@ -34,63 +34,37 @@ class PushConsumer(BunnyConsumer):
         tokens = None
         tokens_by_platform = {}
 
-        executed = False
-
         # messages from a conversation
         if message_object == 'message':
             conversation_id = re.search(r'(\w+).(?:messages|notifications)', rabbitpy_message.routing_key).groups()[0]
-            domain = message.get('domain', BUNNY_NO_DOMAIN)
+            domain = extract_domain(message)
             client = self.clients[domain]
 
+            # Client will be None only if after determining the domain (or getting the default),
+            # no client could be found matching that domain
             if client is None:
-                ### START PROVISIONAL WORKAROUND
-                for clientid, clientwrapper in self.clients.maxclients.items():
-                    try:
-                        result = clientwrapper['client'].conversations[conversation_id].tokens.get()
-                    except:
-                        pass
-                    else:
-                        if result is not None:
-                            client = clientwrapper['client']
-
-                if client is None:
-                    raise BunnyMessageCancel('Unknown domain {}'.format(domain))
-
-                ### END PROVISIONAL WORKAROUND
-                #raise BunnyMessageCancel('Unknown domain {}'.format(domain))
+                raise BunnyMessageCancel('Unknown domain {}'.format(domain))
 
             if conversation_id is None:
                 raise BunnyMessageCancel('The message received is not from a valid conversation')
-            if not executed:
-                tokens = client.conversations[conversation_id].tokens.get()
+
+            tokens = client.conversations[conversation_id].tokens.get()
 
         # messages from a context
         elif message_object == 'activity':
             context_id = rabbitpy_message.routing_key
-            domain = message.get('domain', BUNNY_NO_DOMAIN)
+            domain = extract_domain(message)
             client = self.clients[domain]
 
+            # Client will be None only if after determining the domain (or getting the default),
+            # no client could be found matching that domain
             if client is None:
-                ### START PROVISIONAL WORKAROUND
-                for clientid, clientwrapper in self.clients.maxclients.items():
-                    try:
-                        tokens = clientwrapper['client'].contexts[context_id].tokens.get()
-                    except:
-                        pass
-                    else:
-                        if tokens is not None:
-                            client = clientwrapper['client']
-
-                if client is None:
-                    raise BunnyMessageCancel('Unknown domain {}'.format(domain))
-
-                ### END PROVISIONAL WORKAROUND
-                #raise BunnyMessageCancel('Unknown domain {}'.format(domain))
+                raise BunnyMessageCancel('Unknown domain {}'.format(domain))
 
             if context_id is None:
                 raise BunnyMessageCancel('The activity received is not from a valid context')
-            if not executed:
-                tokens = client.contexts[context_id].tokens.get()
+
+            tokens = client.contexts[context_id].tokens.get()
 
         else:
             raise BunnyMessageCancel('The activity received has an unknown object type')
