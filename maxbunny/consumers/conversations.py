@@ -125,7 +125,7 @@ class ConversationsConsumer(BunnyConsumer):
 
         str_message = json.dumps(ack_message.packed)
         notification_message = rabbitpy.Message(self.channel, str_message)
-        conversations_exchange = rabbitpy.Exchange(self.channel, 'conversations', durable=True, exchange_type='topic')
+        conversations_exchange = rabbitpy.Exchange(self.channel, '{}.publish'.format(message.user), durable=True, exchange_type='topic')
         notification_message.publish(conversations_exchange, routing_key='{}.notifications'.format(conversation_id))
 
 
