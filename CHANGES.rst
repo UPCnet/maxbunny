@@ -1,11 +1,10 @@
 Changelog
 =========
 
-4.0.6 (unreleased)
+4.0.6 (2014-07-08)
 ------------------
 
-- Nothing changed yet.
-
+* Don't send notification to same device token twice [Carles Bruguera]
 
 4.0.5 (2014-07-08)
 ------------------
