@@ -27,9 +27,9 @@ def extract_domain(message):
 
 def send_requeue_traceback(email, consumer_name, traceback, rabbitpy_message):
     message = RabbitMessage.unpack(rabbitpy_message.json())
-    if 'file' in message['data']:
+    if 'file' in message.get('data', ''):
         message['data']['file'] = '< {} binary base64 data>'.format(len(message['data']['file']))
-    if 'image' in message['data']:
+    if 'image' in message.get('data', ''):
         message['data']['image'] = '< {} binary base64 data>'.format(len(message['data']['image']))
     params = {
         'server': os.uname()[1],

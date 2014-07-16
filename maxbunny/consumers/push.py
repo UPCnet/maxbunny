@@ -29,17 +29,25 @@ class PushConsumer(BunnyConsumer):
         """
         packed_message = rabbitpy_message.json()
         message = RabbitMessage.unpack(packed_message)
-
         message_object = message.get('object', None)
         message_action = message.get('action', None)
-        message_username = message['user'].get('username', '')
-        message_display_name = message['user'].get('displayname', message_username)
+        message_user = message.get('user', {})
+        if isinstance(message_user, dict):
+            message_username = message_user.get('username', "")
+            message_display_name = message.get('user', {}).get('displayname', message_username)
+        else:
+           message_username = message_user
+           message_display_name = message_user
+   
+        prepend_user_in_alert = True
+
 
         tokens = None
         tokens_by_platform = {}
 
         domain = extract_domain(message)
         client = self.clients[domain]
+        
 
         # Client will be None only if after determining the domain (or getting the default),
         # no client could be found matching that domain
@@ -66,12 +74,11 @@ class PushConsumer(BunnyConsumer):
 
         # messages from a context
         elif message_object == 'conversation':
-            context_id = rabbitpy_message.routing_key
-
-            if context_id is None:
+            conversation_id = re.search(r'(\w+).(?:messages|notifications)', rabbitpy_message.routing_key).groups()[0]
+            if conversation_id is None:
                 raise BunnyMessageCancel('The activity received is not from a valid context')
 
-            tokens = client.contexts[context_id].tokens.get()
+            tokens = client.conversations[conversation_id].tokens.get()
 
             messages = {
                 'add': {
@@ -80,9 +87,9 @@ class PushConsumer(BunnyConsumer):
                     'ca': u"{} ha iniciat un xat".format(message_display_name),
                 },
                 'refresh': {
-                    'en': u"{} sent an image".format(message_display_name),
-                    'es': u"{} ha enviado una imagen".format(message_display_name),
-                    'ca': u"{} ha enviat una imatge".format(message_display_name),
+                    'en': u"You have received an image".format(message_display_name),
+                    'es': u"Has recibido una imagen".format(message_display_name),
+                    'ca': u"Has rebut una imatge".format(message_display_name),
                 }
 
             }
@@ -91,12 +98,16 @@ class PushConsumer(BunnyConsumer):
             # Rewrite add and refresh covnersation messages with regular text messages explaining it
             try:
                 if message_action in ['add', 'refresh']:
+                    prepend_user_in_alert = False
                     message.action = 'ack'
                     message.object = 'message'
                     message.setdefault('data', {})
                     message['data']['text'] = messages[message_action][self.clients.get_client_language(domain)]
+                    packed_message = message.packed
             except:
                 raise BunnyMessageCancel('Cannot find a message to rewrite {} {}' .format(message_action, message_object))
+
+            tokens = client.conversations[conversation_id].tokens.get()
 
         else:
             raise BunnyMessageCancel('The activity received has an unknown object type')
@@ -117,7 +128,11 @@ class PushConsumer(BunnyConsumer):
         if self.ios_push_certificate_file and tokens_by_platform.get('iOS', []):
             try:
                 message_text = message.get('data', {}).get('text', "")
-                self.send_ios_push_notifications(tokens_by_platform['iOS'], u'{}: {}'.format(message_display_name, message_text), packed_message)
+                if prepend_user_in_alert:
+                    alert_text = u'{}: {}'.format(message_display_name, message_text)
+                else:
+                    alert_text = message_text
+                self.send_ios_push_notifications(tokens_by_platform['iOS'], alert_text, packed_message)
             except Exception as error:
                 exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.__name__)
                 return_message = "iOS device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['iOS'], exception_class, error.message)
@@ -135,15 +150,15 @@ class PushConsumer(BunnyConsumer):
 
     def send_ios_push_notifications(self, tokens, alert, message):
         con = self.ios_session.get_connection("push_production", cert_file=self.ios_push_certificate_file)
-
         extra = deepcopy(message)
 
         if 'd' in extra:
             del extra['d']
         if 'g' in extra:
             del extra['g']
-        if 'd' in extra['u']:
-            del extra['u']['d']
+        if 'u' in extra:
+            if 'd' in extra['u'] and isinstance(extra['u'], dict):
+                del extra['u']['d']
 
         push_message = Message(tokens, alert=alert, badge=1, sound='default', extra=extra)
 
