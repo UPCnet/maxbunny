@@ -38,9 +38,15 @@ class MaxClientsWrapper(object):
             maxclient.setToken(self.instances.get(maxserver, 'restricted_user_token'))
             maxclient_data = {
                 "client": maxclient,
-                "hashtag": self.instances.get(maxserver, 'hashtag')
+                "hashtag": self.instances.get(maxserver, 'hashtag'),
+                "language": self.instances.get(maxserver, 'language')
             }
             self.maxclients[maxserver.lstrip('max_')] = maxclient_data
+
+    def get_client_language(self, key):
+        client_domain_key = self.default_domain if key is BUNNY_NO_DOMAIN else key
+        maxclient = self.maxclients.get(client_domain_key, None)
+        return maxclient['language']
 
     def __getitem__(self, key):
         """

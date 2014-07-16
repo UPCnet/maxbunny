@@ -31,6 +31,10 @@ class PushConsumer(BunnyConsumer):
         message = RabbitMessage.unpack(packed_message)
 
         message_object = message.get('object', None)
+        message_action = message.get('action', None)
+        message_username = message['user'].get('username', '')
+        message_display_name = message['user'].get('displayname', message_username)
+
         tokens = None
         tokens_by_platform = {}
 
@@ -60,6 +64,40 @@ class PushConsumer(BunnyConsumer):
 
             tokens = client.contexts[context_id].tokens.get()
 
+        # messages from a context
+        elif message_object == 'conversation':
+            context_id = rabbitpy_message.routing_key
+
+            if context_id is None:
+                raise BunnyMessageCancel('The activity received is not from a valid context')
+
+            tokens = client.contexts[context_id].tokens.get()
+
+            messages = {
+                'add': {
+                    'en': u"{} started a chat".format(message_display_name),
+                    'es': u"{} ha iniciado un chat".format(message_display_name),
+                    'ca': u"{} ha iniciat un xat".format(message_display_name),
+                },
+                'refresh': {
+                    'en': u"{} sent an image".format(message_display_name),
+                    'es': u"{} ha enviado una imagen".format(message_display_name),
+                    'ca': u"{} ha enviat una imatge".format(message_display_name),
+                }
+
+            }
+
+            # Temporary WORKAROUND
+            # Rewrite add and refresh covnersation messages with regular text messages explaining it
+            try:
+                if message_action in ['add', 'refresh']:
+                    message.action = 'ack'
+                    message.object = 'message'
+                    message.setdefault('data', {})
+                    message['data']['text'] = messages[message_action][self.clients.get_client_language(domain)]
+            except:
+                raise BunnyMessageCancel('Cannot find a message to rewrite {} {}' .format(message_action, message_object))
+
         else:
             raise BunnyMessageCancel('The activity received has an unknown object type')
 
@@ -78,9 +116,8 @@ class PushConsumer(BunnyConsumer):
 
         if self.ios_push_certificate_file and tokens_by_platform.get('iOS', []):
             try:
-                user_displayname = message['user'].get('displayname', message['user'].get('username', ''))
                 message_text = message.get('data', {}).get('text', "")
-                self.send_ios_push_notifications(tokens_by_platform['iOS'], u'{}: {}'.format(user_displayname, message_text), packed_message)
+                self.send_ios_push_notifications(tokens_by_platform['iOS'], u'{}: {}'.format(message_display_name, message_text), packed_message)
             except Exception as error:
                 exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.__name__)
                 return_message = "iOS device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['iOS'], exception_class, error.message)
