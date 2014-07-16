@@ -85,7 +85,7 @@ class PushConsumer(BunnyConsumer):
         if self.ios_push_certificate_file and tokens_by_platform.get('iOS', []):
             try:
                 user_displayname = message['user'].get('displayname', message['user'].get('username', ''))
-                self.send_ios_push_notifications(tokens_by_platform['iOS'], '{}: {}'.format(user_displayname, message['data']['text']), packed_message)
+                self.send_ios_push_notifications(tokens_by_platform['iOS'], u'{}: {}'.format(user_displayname, message['data']['text']), packed_message)
             except Exception as error:
                 exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.__name__)
                 return_message = "iOS device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['iOS'], exception_class, error.message)
@@ -122,11 +122,11 @@ class PushConsumer(BunnyConsumer):
         # Check failures. Check codes in APNs reference docs.
         for token, reason in res.failed.items():
             code, errmsg = reason
-            return_message = "[iOS] Device push failed: {0}, reason: {1}".format(token, errmsg)
+            return_message = u"[iOS] Device push failed: {0}, reason: {1}".format(token, errmsg)
             tokens.remove(token)
             self.logger.info(return_message)
 
-        return_message = "[iOS] Successfully sent {} to {}.".format(push_message.alert, tokens)
+        return_message = u"[iOS] Successfully sent {} to {}.".format(push_message.alert, tokens)
         self.logger.info(return_message)
         return return_message
 
@@ -149,7 +149,7 @@ class PushConsumer(BunnyConsumer):
             for res in [res_multicast]:
                 # nothing to do on success
                 for reg_id, msg_id in res.success.items():
-                    self.logger.info("[Android] Successfully sent %s as %s" % (reg_id, msg_id))
+                    self.logger.info(u"[Android] Successfully sent %s as %s" % (reg_id, msg_id))
 
                 # # update your registration ID's
                 # for reg_id, new_reg_id in res.canonical.items():
@@ -157,12 +157,12 @@ class PushConsumer(BunnyConsumer):
 
                 # probably app was uninstalled
                 for reg_id in res.not_registered:
-                    self.logger.info("[Android] Invalid %s from database" % reg_id)
+                    self.logger.info(u"[Android] Invalid %s from database" % reg_id)
 
                 # unrecoverably failed, these ID's will not be retried
                 # consult GCM manual for all error codes
                 for reg_id, err_code in res.failed.items():
-                    self.logger.info("[Android] Should remove %s because %s" % (reg_id, err_code))
+                    self.logger.info(u"[Android] Should remove %s because %s" % (reg_id, err_code))
 
                 # # if some registration ID's have recoverably failed
                 # if res.needs_retry():
@@ -176,17 +176,17 @@ class PushConsumer(BunnyConsumer):
 
         except GCMAuthenticationError:
             # stop and fix your settings
-            self.logger.info("[Android] Your Google API key is rejected")
+            self.logger.info(u"[Android] Your Google API key is rejected")
         except ValueError, e:
             # probably your extra options, such as time_to_live,
             # are invalid. Read error message for more info.
-            self.logger.info("[Android] Invalid message/option or invalid GCM response")
+            self.logger.info(u"[Android] Invalid message/option or invalid GCM response")
             print e.args[0]
         except Exception:
             # your network is down or maybe proxy settings
             # are broken. when problem is resolved, you can
             # retry the whole message.
-            self.logger.info("[Android] Something wrong with requests library")
+            self.logger.info(u"[Android] Something wrong with requests library")
 
 
 __consumer__ = PushConsumer
