@@ -34,16 +34,17 @@ class PushConsumer(BunnyConsumer):
         tokens = None
         tokens_by_platform = {}
 
-        # messages from a conversation
-        if message_object == 'message':
-            conversation_id = re.search(r'(\w+).(?:messages|notifications)', rabbitpy_message.routing_key).groups()[0]
-            domain = extract_domain(message)
-            client = self.clients[domain]
+        domain = extract_domain(message)
+        client = self.clients[domain]
 
-            # Client will be None only if after determining the domain (or getting the default),
-            # no client could be found matching that domain
-            if client is None:
-                raise BunnyMessageCancel('Unknown domain {}'.format(domain))
+        # Client will be None only if after determining the domain (or getting the default),
+        # no client could be found matching that domain
+        if client is None:
+            raise BunnyMessageCancel('Unknown domain {}'.format(domain))
+
+        # messages from a conversation
+        if message_object in ['message', 'conversation']:
+            conversation_id = re.search(r'(\w+).(?:messages|notifications)', rabbitpy_message.routing_key).groups()[0]
 
             if conversation_id is None:
                 raise BunnyMessageCancel('The message received is not from a valid conversation')
@@ -53,13 +54,6 @@ class PushConsumer(BunnyConsumer):
         # messages from a context
         elif message_object == 'activity':
             context_id = rabbitpy_message.routing_key
-            domain = extract_domain(message)
-            client = self.clients[domain]
-
-            # Client will be None only if after determining the domain (or getting the default),
-            # no client could be found matching that domain
-            if client is None:
-                raise BunnyMessageCancel('Unknown domain {}'.format(domain))
 
             if context_id is None:
                 raise BunnyMessageCancel('The activity received is not from a valid context')
