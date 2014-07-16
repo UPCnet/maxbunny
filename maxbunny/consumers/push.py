@@ -43,7 +43,7 @@ class PushConsumer(BunnyConsumer):
             raise BunnyMessageCancel('Unknown domain {}'.format(domain))
 
         # messages from a conversation
-        if message_object in ['message', 'conversation']:
+        if message_object in ['message', 'conversation ']:
             conversation_id = re.search(r'(\w+).(?:messages|notifications)', rabbitpy_message.routing_key).groups()[0]
 
             if conversation_id is None:
@@ -79,7 +79,8 @@ class PushConsumer(BunnyConsumer):
         if self.ios_push_certificate_file and tokens_by_platform.get('iOS', []):
             try:
                 user_displayname = message['user'].get('displayname', message['user'].get('username', ''))
-                self.send_ios_push_notifications(tokens_by_platform['iOS'], u'{}: {}'.format(user_displayname, message['data']['text']), packed_message)
+                message_text = message.get('data', {}).get('text', "")
+                self.send_ios_push_notifications(tokens_by_platform['iOS'], u'{}: {}'.format(user_displayname, message_text), packed_message)
             except Exception as error:
                 exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.__name__)
                 return_message = "iOS device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['iOS'], exception_class, error.message)
