@@ -1,11 +1,15 @@
 Changelog
 =========
 
-4.0.7 (unreleased)
+4.0.7 (2014-07-16)
 ------------------
 
-- Nothing changed yet.
-
+* Fine tune workarounds [Carles Bruguera]
+* Added workaround to send image and new conversations push [Carles Bruguera]
+* Don't assume there will be always a text inside data [Carles Bruguera]
+* Don't ignore conversation object in messages [Carles Bruguera]
+* Fix unicodeEncode bug [Carles Bruguera]
+* Require extra wsgi feature from maxclient [Carles Bruguera]
 
 4.0.6 (2014-07-08)
 ------------------
