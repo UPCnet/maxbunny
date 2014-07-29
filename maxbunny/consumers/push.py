@@ -29,6 +29,10 @@ class PushConsumer(BunnyConsumer):
         """
         packed_message = rabbitpy_message.json()
         message = RabbitMessage.unpack(packed_message)
+
+        # Forward the routing key to the mobile apps
+        message['destination'] = rabbitpy_message.routing_key
+
         message_object = message.get('object', None)
         message_action = message.get('action', None)
         message_user = message.get('user', {})
@@ -36,18 +40,16 @@ class PushConsumer(BunnyConsumer):
             message_username = message_user.get('username', "")
             message_display_name = message.get('user', {}).get('displayname', message_username)
         else:
-           message_username = message_user
-           message_display_name = message_user
-   
-        prepend_user_in_alert = True
+            message_username = message_user
+            message_display_name = message_user
 
+        prepend_user_in_alert = True
 
         tokens = None
         tokens_by_platform = {}
 
         domain = extract_domain(message)
         client = self.clients[domain]
-        
 
         # Client will be None only if after determining the domain (or getting the default),
         # no client could be found matching that domain
@@ -132,7 +134,7 @@ class PushConsumer(BunnyConsumer):
                     alert_text = u'{}: {}'.format(message_display_name, message_text)
                 else:
                     alert_text = message_text
-                self.send_ios_push_notifications(tokens_by_platform['iOS'], alert_text, packed_message)
+                self.send_ios_push_notifications(tokens_by_platform['iOS'], alert_text, message.packed)
             except Exception as error:
                 exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.__name__)
                 return_message = "iOS device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['iOS'], exception_class, error.message)
@@ -140,7 +142,7 @@ class PushConsumer(BunnyConsumer):
 
         if self.android_push_api_key and tokens_by_platform.get('android', []):
             try:
-                self.send_android_push_notifications(tokens_by_platform['android'], packed_message)
+                self.send_android_push_notifications(tokens_by_platform['android'], message.packed)
             except Exception as error:
                 exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.__name__)
                 return_message = "Android device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['android'], exception_class, error.message)
