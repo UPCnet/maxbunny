@@ -118,9 +118,11 @@ class PushConsumer(BunnyConsumer):
             raise BunnyMessageCancel('No tokens received')
 
         for token in tokens:
-            # TODO: On production, not send notification to sender
-            # if token.get('username') != message.get('user', {}).get('username'):
-            tokens_by_platform.setdefault(token.get('platform'), [])
+            is_debug_message = '#debug' in message.get('data', {}).get('text', '')
+            token_is_from_sender = token.get('username') != message_username
+            # Do not send notification to sender unless #debug hashtag included
+            if is_debug_message or not token_is_from_sender:
+                tokens_by_platform.setdefault(token.get('platform'), [])
 
             # Add the token if it's not already in the list
             # use case: two users within a conversation, both logged in the same device. Shit happens
