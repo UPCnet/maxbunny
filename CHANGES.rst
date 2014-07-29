@@ -1,11 +1,12 @@
 Changelog
 =========
 
-4.0.8 (unreleased)
+4.0.8 (2014-07-29)
 ------------------
 
-- Nothing changed yet.
-
+* Do not send push to sender unless #pushdebug found [Carles Bruguera]
+* Store id in ack_message [Carles Bruguera]
+* Include routing_key as message destination [Carles Bruguera]
 
 4.0.7 (2014-07-16)
 ------------------
