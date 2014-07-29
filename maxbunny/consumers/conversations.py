@@ -85,7 +85,9 @@ class ConversationsConsumer(BunnyConsumer):
             "version": "4.0.3",
         })
 
-        message['data']['id'] = activity['id']
+        # include message activity id
+        ack_message['data']['id'] = activity['id']
+
         if domain is not BUNNY_NO_DOMAIN:
             ack_message['domain'] = domain
 
