@@ -120,13 +120,15 @@ class PushConsumer(BunnyConsumer):
         for token in tokens:
             is_debug_message = '#debug' in message.get('data', {}).get('text', '')
             token_is_from_sender = token.get('username') != message_username
-            # Do not send notification to sender unless #debug hashtag included
-            if is_debug_message or not token_is_from_sender:
-                tokens_by_platform.setdefault(token.get('platform'), [])
+            token_is_duplicated = token.get('token') in tokens_by_platform[token.get('platform')]
 
-            # Add the token if it's not already in the list
+            tokens_by_platform.setdefault(token.get('platform'), [])
+
+            # Do not append token to sender unless #debug hashtag included
+            # and add it only if it's not already in the list
             # use case: two users within a conversation, both logged in the same device. Shit happens
-            if token.get('token') not in tokens_by_platform[token.get('platform')]:
+
+            if (is_debug_message or not token_is_from_sender) and not token_is_duplicated:
                 tokens_by_platform[token.get('platform')].append(token.get('token'))
 
         if self.ios_push_certificate_file and tokens_by_platform.get('iOS', []):
