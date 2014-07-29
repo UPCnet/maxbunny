@@ -120,8 +120,8 @@ class PushConsumer(BunnyConsumer):
         for token in tokens:
             tokens_by_platform.setdefault(token.get('platform'), [])
 
-            is_debug_message = '#debug' in message.get('data', {}).get('text', '')
-            token_is_from_sender = token.get('username') != message_username
+            is_debug_message = '#pushdebug' in message.get('data', {}).get('text', '')
+            token_is_from_sender = token.get('username') == message_username
             token_is_duplicated = token.get('token') in tokens_by_platform[token.get('platform')]
 
             # Do not append token to sender unless #debug hashtag included
