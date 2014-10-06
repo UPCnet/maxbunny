@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from maxclient.wsgi import MaxClient
 from maxbunny import BUNNY_NO_DOMAIN
-
+import re
 
 class MaxClientsWrapper(object):
     """
@@ -41,7 +41,8 @@ class MaxClientsWrapper(object):
                 "hashtag": self.instances.get(maxserver, 'hashtag'),
                 "language": self.instances.get(maxserver, 'language')
             }
-            self.maxclients[maxserver.lstrip('max_')] = maxclient_data
+            domain_id = re.sub(r'max_(.*?)', r'\1', 'max_mediolanum')
+            self.maxclients[domain_id] = maxclient_data
 
     def get_client_language(self, key):
         client_domain_key = self.default_domain if key is BUNNY_NO_DOMAIN else key
