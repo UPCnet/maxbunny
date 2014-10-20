@@ -6,7 +6,7 @@ import gevent
 import logging
 import signal
 import sys
-
+import pkg_resources
 
 LOGGER = logging.getLogger('bunny')
 BUNNY_NO_DOMAIN = 0x01
@@ -14,11 +14,45 @@ BUNNY_NO_DOMAIN = 0x01
 from maxbunny.runner import BunnyRunner
 from maxbunny.utils import setup_logging
 
+# PATCH Openssl to make it compatible with gevent
+
 from OpenSSL import *
 from maxbunny.SSL import Connection
 
 mod = __import__('OpenSSL').SSL
 mod.Connection = Connection
+
+
+# PATCH rabbitpy to modify client_properties to show
+# maxbunny version info in Rabbitmq Management plugin
+
+from pamqp import specification
+from rabbitpy.channel0 import Channel0
+
+
+def _build_start_ok_frame(self):
+    """Build and return the Connection.StartOk frame.
+
+    :rtype: pamqp.specification.Connection.StartOk
+
+    """
+    version = sys.version_info
+    properties = {'product': 'maxbunny',
+                  'platform': 'Python %s.%s.%s' % (version[0],
+                                                   version[1],
+                                                   version[2]),
+                  'capabilities': {'authentication_failure_close': True,
+                                   'basic.nack': True,
+                                   'connection.blocked': True,
+                                   'consumer_cancel_notify': True,
+                                   'publisher_confirms': True},
+                  'information': 'See http://rabbitpy.readthedocs.org',
+                  'version': pkg_resources.require('maxbunny')[0].version}
+    return specification.Connection.StartOk(client_properties=properties,
+                                            response=self._credentials,
+                                            locale=self._get_locale())
+
+Channel0._build_start_ok_frame = _build_start_ok_frame
 
 
 def main(argv=sys.argv, quiet=False):  # pragma: no cover
