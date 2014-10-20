@@ -36,18 +36,19 @@ def _build_start_ok_frame(self):
     :rtype: pamqp.specification.Connection.StartOk
 
     """
-    version = sys.version_info
-    properties = {'product': 'maxbunny',
-                  'platform': 'Python %s.%s.%s' % (version[0],
-                                                   version[1],
-                                                   version[2]),
-                  'capabilities': {'authentication_failure_close': True,
-                                   'basic.nack': True,
-                                   'connection.blocked': True,
-                                   'consumer_cancel_notify': True,
-                                   'publisher_confirms': True},
-                  'information': 'See http://rabbitpy.readthedocs.org',
-                  'version': pkg_resources.require('maxbunny')[0].version}
+    properties = {
+        'product': 'maxbunny',
+        'platform': 'Python {0.major}.{0.minor}.{0.micro}'.format(sys.version_info),
+        'capabilities': {'authentication_failure_close': True,
+                         'basic.nack': True,
+                         'connection.blocked': True,
+                         'consumer_cancel_notify': True,
+                         'publisher_confirms': True},
+        'information': 'See http://rabbitpy.readthedocs.org',
+        'version': pkg_resources.require('maxbunny')[0].version,
+        'library': 'rabbitpy',
+        'library-version': pkg_resources.require('rabbitpy')[0].version
+    }
     return specification.Connection.StartOk(client_properties=properties,
                                             response=self._credentials,
                                             locale=self._get_locale())
