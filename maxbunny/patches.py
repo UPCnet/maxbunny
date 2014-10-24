@@ -77,7 +77,9 @@ def __init__(self, cert_string=None, cert_file=None, key_string=None, key_file=N
     # used to compare certificates.
     self._equality = OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_PEM, cert)
 
-Certificate.__init__ = __init__
+
+def patch_ssl_method():
+    Certificate.__init__ = __init__
 
 # PATCH rabbitpy to modify client_properties to show
 # maxbunny version info in Rabbitmq Management plugin
