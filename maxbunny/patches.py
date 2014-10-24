@@ -50,4 +50,6 @@ def _build_start_ok_frame(self):
                                             response=self._credentials,
                                             locale=self._get_locale())
 
-Channel0._build_start_ok_frame = _build_start_ok_frame
+
+def patch_client_properties():
+    Channel0._build_start_ok_frame = _build_start_ok_frame
