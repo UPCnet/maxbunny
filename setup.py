@@ -9,7 +9,7 @@ CHANGES = open(os.path.join(here, 'CHANGES.rst')).read()
 requires = [
     'maxcarrot',
     'maxclient [wsgi]',
-    'apns_client',
+    'apns_client==0.1.8',
     'gcm-client',
     'rabbitpy',
     'gevent'
