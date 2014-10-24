@@ -3,6 +3,7 @@ from maxclient.wsgi import MaxClient
 from maxbunny import BUNNY_NO_DOMAIN
 import re
 
+
 class MaxClientsWrapper(object):
     """
         Mimics a dict of maxclients, which tries to reload new-defined maxservers
@@ -41,7 +42,7 @@ class MaxClientsWrapper(object):
                 "hashtag": self.instances.get(maxserver, 'hashtag'),
                 "language": self.instances.get(maxserver, 'language')
             }
-            domain_id = re.sub(r'max_(.*?)', r'\1', 'max_mediolanum')
+            domain_id = re.sub(r'max_(.*?)', r'\1', maxserver)
             self.maxclients[domain_id] = maxclient_data
 
     def get_client_language(self, key):
