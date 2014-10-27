@@ -1,11 +1,15 @@
 Changelog
 =========
 
-4.0.9 (unreleased)
+4.0.9 (2014-10-27)
 ------------------
 
-- Nothing changed yet.
-
+* Patch to solve SSLv3 deprecation from apple [Carles Bruguera]
+* Move patches to patches.py [Carles Bruguera]
+* Fix "da mediolanum bug" [Carles Bruguera]
+* Pin apns-client [Carles Bruguera]
+* Set custom client properties [Carles Bruguera]
+* WEIRDEST BUG EVER, lstrip, strips *char-by-char* [Carles Bruguera]
 
 4.0.8 (2014-07-29)
 ------------------
