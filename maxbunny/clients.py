@@ -56,12 +56,11 @@ class MaxClientsWrapper(object):
         """
         client_domain_key = self.default_domain if key is BUNNY_NO_DOMAIN else key
         maxclient = self.maxclients.get(client_domain_key, None)
-
         # If no maxclient found
         if maxclient is None:
             # reload maxservers from file and try it again
             self.load_instances()
-            maxclient = self.maxclients.get(key, None)
+            maxclient = self.maxclients.get(client_domain_key, None)
             if maxclient is None:
                 return None
 

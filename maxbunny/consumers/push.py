@@ -27,6 +27,7 @@ class PushConsumer(BunnyConsumer):
     def process(self, rabbitpy_message):
         """
         """
+        raise BunnyMessageCancel('PUSH Disabled')
         packed_message = rabbitpy_message.json()
         message = RabbitMessage.unpack(packed_message)
 
