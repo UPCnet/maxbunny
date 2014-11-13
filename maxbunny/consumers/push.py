@@ -27,7 +27,9 @@ class PushConsumer(BunnyConsumer):
     def process(self, rabbitpy_message):
         """
         """
-        raise BunnyMessageCancel('PUSH Disabled')
+        if not self.ios_push_certificate_file and not self.android_push_api_key:
+            raise BunnyMessageCancel('PUSH keys not configured')
+
         packed_message = rabbitpy_message.json()
         message = RabbitMessage.unpack(packed_message)
 
