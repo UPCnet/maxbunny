@@ -1,17 +1,15 @@
 # -*- coding: utf-8 -*-
-from gevent import getcurrent
-from gevent.hub import GreenletExit
-from gevent.pool import Pool
 from rabbitpy.exceptions import ConnectionResetException
 from rabbitpy.exceptions import AMQPNotFound
+from rabbitpy.exceptions import AMQPConnectionForced
 from maxclient.rest import RequestError
 from maxbunny.utils import get_message_uuid, send_requeue_traceback
 
-import gevent
 import logging
+import multiprocessing
 import rabbitpy
 import traceback
-import json
+import time
 
 
 class BunnyMessageRequeue(Exception):
@@ -30,24 +28,53 @@ class BunnyConsumer(object):
     name = 'consumer'
     queue = 'amq.queue'
 
-    def __init__(self, runner):
+    def __init__(self, runner, workers):
         """
         """
+        self.rabbitmq_server = runner.rabbitmq_server
         self.__configure__(runner)
-
         # Setup logger
         self.logger = self.configure_logger()
         self.root_logger = logging.getLogger('bunny')
         self.requeued = []
+        self.workers = []
+        self.channels = {}
+        self.workers_count = workers
+
+    def reset_connection(self):
+        """
+            Deletes the connection and channel of the current worker process
+        """
+        del self.channels[self.wid]
+
+    @property
+    def channel(self):
+        """
+            Opens a connection and a channel for each consumer process
+            started
+        """
+        wrapper = self.channels.setdefault(self.wid, {})
+        if not 'connection' in wrapper:
+            wrapper['connection'] = rabbitpy.Connection(self.rabbitmq_server)
+
+        if not 'channel' in wrapper:
+            wrapper['channel'] = wrapper['connection'].channel()
+
+        return wrapper['channel']
+
+    @property
+    def wid(self):
+        """
+            Returns the identifier of the current worker process
+        """
+        return multiprocessing.current_process().name
 
     def __configure__(self, runner):
-        self.channel = runner.conn.channel()
         self.ready = runner.workers_ready
         self.on_restart = runner.restart
         self.rabbitmq_server = runner.rabbitmq_server
         self.clients = runner.clients
         self.logging_folder = runner.config.get('main', 'logging_folder')
-        self.pool = Pool(runner.workers)
 
         # execute custom configuration options
         if hasattr(self, 'configure'):
@@ -68,88 +95,81 @@ class BunnyConsumer(object):
 
         return logger
 
-    def add_worker(self):
+    def start(self):
         """
-            Create a new greenlet with the consume task
+            Spawn required workers for this consumer
         """
-        self.pool.spawn(self.consume)
+        for worker_id in range(self.workers_count):
+            worker = multiprocessing.Process(
+                name='consumers.{}.{}'.format(self.name, worker_id + 1),
+                target=self.consume)
+            self.workers.append(worker)
+            worker.start()
 
-    def stop_consuming(self):
+    def restart_worker(self, message="Crashed by unknown exception"):
         """
-            Close the channel to make all consumer connections disappear
+            Restarts a workers without exiting its process
         """
-        self.channel.close()
+        self.root_logger.error(message)
+        self.logger.warning('Exiting Worker {}'.format(self.wid))
+        self.reset_connection()
+        self.consume(nowait=True)
 
-    def stop_workers(self, ignore):
+    def consume(self, nowait=False):
         """
-            Kill consumer greenlets
-        """
-        grenlets = [greenlet for greenlet in self.pool]
-        for greenlet in grenlets:
-            if ignore is None or ignore == id(greenlet):
-                greenlet.kill()
+            Start consuming loop for the current process.
 
-    def empty_pool(self):
+            Loop tries to autorestart on any exception.
+            Control+C causes worker to exit definitely.
         """
-            Remove greenlets from the pool and disable it
-        """
-        grenlets = [greenlet for greenlet in self.pool]
-        for greenlet in grenlets:
-            self.pool.discard(greenlet)
-        self.pool = None
+        restarted = False
+        failed = False
+        while not restarted:
+            try:
+                queue = rabbitpy.Queue(self.channel, self.queue)
+            except Exception as exc:
+                time.sleep(2)
+                if not failed:
+                    self.logger.info('Waiting for rabbitmq...')
+                failed = True
+            else:
+                restarted = True
 
-    def stop(self, ignore=None):
-        """
-            Stop all consumer-related structures
-        """
-        self.stop_consuming()
-        self.stop_workers(ignore=ignore)
+        if failed:
+            self.logger.info('Connection with RabbitMQ recovered!')
 
-    def restart(self):
-        """
-            Signal the runner a restart event, to broadcast to the rest of consumers
-        """
-        self.on_restart(clean_restart=True, source=id(getcurrent()))
-
-    def consume(self):
-        """
-            Start consuming loop
-        """
-        queue = rabbitpy.Queue(self.channel, self.queue)
-
-        # Wait for all workers to start eating carrots
-        self.ready.get()
-        self.logger.info('Worker {} ready'.format(id(getcurrent())))
+        if not nowait:
+            # Wait for all workers to start eating carrots
+            self.ready.wait()
+            self.logger.info('Worker {} ready'.format(self.wid))
 
         # Start consuming messages
         try:
             for message in queue.consume_messages():
                 if message:
                     self.__process__(message)
-                gevent.sleep(ref=True)
-
-        # Stop when required by runner
+        except KeyboardInterrupt:
+            self.logger.warning('Exiting Worker {}, {}'.format(self.wid, 'User Canceled'))
         except AMQPNotFound as exc:
-            self.logger.warning('Exiting Worker {}, {}'.format(id(getcurrent()), exc.message.reply_text))
-            self.stop()
-            self.empty_pool()
-        except GreenletExit:
-            self.logger.info('Exiting Worker {}'.format(id(getcurrent())))
-            self.stop_consuming()
+            self.logger.warning('Exiting Worker {}, {}'.format(self.wid, exc.message.reply_text))
         except ConnectionResetException:
-            self.root_logger.warning('Rabbit Connection Reset')
-            self.logger.warning('Exiting Worker {}'.format(id(getcurrent())))
-            self.restart()
-#        except Exception as exc:
-#            self.root_logger.error('Crashed by unknown exception')
-#            self.logger.warning('Exiting Worker {}'.format(id(getcurrent())))
-#            self.restart()
+            self.restart_worker('Rabbit Connection Reset')
+        except AMQPConnectionForced:
+            self.restart_worker('Forced Connection Close')
+        except Exception as exc:
+            self.restart_worker()
 
     def ack(self, message):
+        """
+            Sends ack to rabbitmq for this message.
+        """
         message.ack()
 
     def nack(self, message, error):
         uuid = get_message_uuid(message)
+        """
+            Drops the message and sends nack to rabbitmq.
+        """
         self.logger.warning('Message {} droped, reason: {}'.format(uuid, error.message))
         if uuid in self.requeued:
             self.requeued.remove(uuid)

@@ -96,5 +96,4 @@ class ConversationsConsumer(BunnyConsumer):
         conversations_exchange = rabbitpy.Exchange(self.channel, '{}.publish'.format(message.user['username']), durable=True, exchange_type='topic')
         notification_message.publish(conversations_exchange, routing_key='{}.notifications'.format(conversation_id))
 
-
 __consumer__ = ConversationsConsumer

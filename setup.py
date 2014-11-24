@@ -11,8 +11,7 @@ requires = [
     'maxclient [wsgi]',
     'apns_client==0.1.8',
     'gcm-client',
-    'rabbitpy',
-    'gevent'
+    'rabbitpy'
 ]
 
 setup(name='maxbunny',

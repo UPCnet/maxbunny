@@ -1,19 +1,14 @@
 # -*- coding: utf-8 -*-
-from gevent import getcurrent
-from gevent.event import AsyncResult
-from gevent.monkey import patch_all
 from maxbunny.clients import MaxClientsWrapper
 
 import ConfigParser
-import gevent
 import importlib
 import logging
-import rabbitpy
 import re
+import multiprocessing
 
 
 logger = logging.getLogger('bunny')
-patch_all()
 
 
 class BunnyRunner(object):
@@ -29,39 +24,41 @@ class BunnyRunner(object):
         self.clients = MaxClientsWrapper(self.instances, self.config.get('main', 'default_domain'))
 
         self.consumers = {}
+        self.workers_ready = multiprocessing.Event()
 
-        self.plugins = re.findall(r'\w+', self.config.get('main', 'plugins'))
-        self.workers = int(self.config.get('main', 'workers'))
+        plugin_config = re.findall(r'(\w+)(?::(\d+))?', self.config.get('main', 'plugins'))
+        for plugin_id, workers in plugin_config:
+            workers = int(workers) if workers else 1
+            Consumer = self.get_consumer_class(plugin_id)
+            if Consumer:
+                self.consumers[plugin_id] = Consumer(self, workers)
+                logger.info('Plugin "{}" loaded'.format(plugin_id))
 
-        self.conn = rabbitpy.Connection(self.rabbitmq_server)
-        self.workers_ready = AsyncResult()
+    def get_consumer_class(self, plugin):
+        """
+            Returns the consumer module for a plugin name, Return nothing on errors
+        """
+        try:
+            module = importlib.import_module('maxbunny.consumers.{}'.format(plugin))
+        except ImportError:
+            logger.info('No plugin named "{}" found'.format(plugin))
+            return None
+        except:
+            logger.info('An error occurred trying to load plugin "{}"'.format(plugin))
+            return None
 
-        for plugin in self.plugins:
+        # Load consumer class, ignore it on errors
+        try:
+            consumer_class = getattr(module, '__consumer__')
+        except AttributeError:
+            logger.info('No consumer defined in plugin "{}"'.format(plugin))
+            return None
+        except:
+            logger.info('An error occurred trying to load consumer from plugin "{}"'.format(plugin))
+            return None
 
-            # Import consumer module, ignore it on errors
-            try:
-                module = importlib.import_module('maxbunny.consumers.{}'.format(plugin))
-            except ImportError:
-                logger.info('No plugin named "{}" found'.format(plugin))
-                break
-            except:
-                logger.info('An error occurred trying to load plugin "{}"'.format(plugin))
-                break
-
-            # Load consumer class, ignore it on errors
-            try:
-                consumer_class = getattr(module, '__consumer__')
-            except AttributeError:
-                logger.info('No consumer defined in plugin "{}"'.format(plugin))
-                break
-            except:
-                logger.info('An error occurred trying to load consumer from plugin "{}"'.format(plugin))
-                break
-
-            # Create a consumer instance for each plugin
-
-            self.consumers[plugin] = consumer_class(self)
-            logger.info('Plugin "{}" loaded'.format(plugin))
+        # Create a consumer instance for each plugin
+        return consumer_class
 
     def load_config(self, config):
         """
@@ -80,65 +77,19 @@ class BunnyRunner(object):
         self.instances = ConfigParser.ConfigParser()
         self.instances.read(instances_config_file)
 
-    def start_consumer(self, consumer):
-        """
-            Start a consumer with N workers for each plugin defined
-        """
-        for worker in range(self.workers):
-            consumer.add_worker()
-            gevent.sleep(ref=False)
-
-    def restart(self, clean_restart=True, source=None):
-        """
-            Make sure all defined cosumers stop all spawned greenlets
-            And try to reconnect to RabbitMQ. Once done, reinitialize
-            consumers and restart the listening loops;
-        """
-        for plugin_id, consumer in self.consumers.items():
-            if clean_restart:
-                consumer.stop(ignore=source)
-            consumer.empty_pool()
-        restarted = False
-        logger.info('Waiting for RabbitMQ ...')
-
-        while not restarted:
-            try:
-                self.conn = rabbitpy.Connection(self.rabbitmq_server)
-            except:
-                gevent.sleep(2, ref=False)
-                logger.info('Still waiting ...')
-            else:
-                restarted = True
-                logger.info('Connection with RabbitMQ recovered!')
-                self.workers_ready = AsyncResult()
-                for plugin_id, consumer in self.consumers.items():
-                    consumer.__configure__(self)
-                self.start()
-
     def start(self):
         """
-            Spawn as much workers as defined in maxbunny.ini config for each loaded plugin
+            Start defined workers for each consumer
         """
-        for plugin_id, consumer in self.consumers.items():
-            self.start_consumer(consumer)
 
-        self.workers_ready.set(True)
+        for consumer_id, consumer in self.consumers.items():
+            consumer.start()
 
-    def stop(self):
-        """
-            Stop all consumers and close rabbitmq connection
-        """
-        logger.info("Stopping workers")
-        for plugin_id, consumer in self.consumers.items():
-            consumer.stop()
-        logger.info("Disconnecting from rabbitmq")
-        self.conn.close()
+        self.workers_ready.set()
 
-    def quit(self):
-        """
-            Final cleanup to exit process
-        """
-        self.stop()
-        for plugin_id, consumer in self.consumers.items():
-            consumer.empty_pool()
-        gevent.kill(getcurrent())
+        try:
+            for consumer_id, consumer in self.consumers.items():
+                for worker in consumer.workers:
+                    worker.join()
+        except:
+            logger.warning('MaxBunny exiting now...')
