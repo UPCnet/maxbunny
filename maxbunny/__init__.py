@@ -3,7 +3,7 @@
 import ConfigParser
 import argparse
 import logging
-import signal
+import os
 import sys
 
 LOGGER = logging.getLogger('bunny')
@@ -30,13 +30,17 @@ def main(argv=sys.argv, quiet=False):  # pragma: no cover
         help=("Configuration file"))
     options = parser.parse_args()
 
-    config = ConfigParser.ConfigParser()
+    config = ConfigParser.SafeConfigParser({
+        "smtp_server": "localhost",
+        "notify_address": "noreply@{}".format(os.uname()[1]),
+        "notify_recipients": ""
+    })
+
     config.read(options.configfile)
 
     setup_logging(options.configfile)
 
     runner = BunnyRunner(config)
-    signal.signal(signal.SIGUSR1, runner.restart)
     runner.start()
 
 if __name__ == '__main__':

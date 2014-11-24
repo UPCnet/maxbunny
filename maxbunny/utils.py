@@ -7,11 +7,47 @@ import os
 import re
 import json
 import logging
+import smtplib
+from email.mime.text import MIMEText
 
-exceptions = logging.getLogger('requeues')
+requeued = logging.getLogger('requeues')
+dropped = logging.getLogger('dropped')
 
 UNICODE_ACCEPTED_CHARS = u'áéíóúàèìòùïöüçñ'
 FIND_HASHTAGS_REGEX = r'(\s|^)#{1}([\w\-\_\.%s]+)' % UNICODE_ACCEPTED_CHARS
+REQUEUE_TEMPLATE = """
+Hello,
+
+this message is to inform that a message has been requed because a failure
+on a MaxBunny consumer at "{server}". You'll receive this notification only once
+for each message, but the message will remain qeued. Please fix it !
+
+Message adressed to destination: "{routing_key}" containing:
+
+{message}
+
+failed on consumer "{consumer}" with the following traceback:
+
+{traceback}
+
+"""
+
+DROP_TEMPLATE = """
+Hello,
+
+this message is to inform that a message has been droppedd because a failure
+on a MaxBunny consumer at "{server}". This message is definitely dropped and
+won't go anywhere unless you add it manually.
+
+Message adressed to destination: "{routing_key}" containing:
+
+{message}
+
+failed on consumer "{consumer}" with the following traceback:
+
+{traceback}
+
+"""
 
 
 def extract_domain(message):
@@ -25,39 +61,49 @@ def extract_domain(message):
     return domain
 
 
-def send_requeue_traceback(email, consumer_name, traceback, rabbitpy_message):
-    message = RabbitMessage.unpack(rabbitpy_message.json())
-    if 'file' in message.get('data', ''):
-        message['data']['file'] = '< {} binary base64 data>'.format(len(message['data']['file']))
-    if 'image' in message.get('data', ''):
-        message['data']['image'] = '< {} binary base64 data>'.format(len(message['data']['image']))
+def send_traceback(mail_settings, consumer_name, traceback, rabbitpy_message, template='', logger=None, subject=''):
+    try:
+        message = json.dumps(RabbitMessage.unpack(rabbitpy_message.json()))
+    except:
+        message = rabbitpy_message.body
+
+    routing_key = rabbitpy_message.routing_key if rabbitpy_message.routing_key else 'UNKNOWN'
     params = {
         'server': os.uname()[1],
-        'routing_key': rabbitpy_message.routing_key,
+        'routing_key': routing_key,
         'consumer': consumer_name,
-        'message': json.dumps(message),
+        'message': message,
         'traceback': traceback
     }
 
-    mail_body = """
-Hello,
-
-this message is to inform that a message has been requed because a failure
-on a MaxBunny consumer at "{server}". You'll receive this notification only once
-for each message, but the message will remain qeued. Please fix it !
-
-Message adressed to destination: {routing_key} containing:
-
-{message}
-
-failed on consumer "{consumer}" with the following traceback:
-
-{traceback}
-
-""".format(**params)
+    mail_body = template.format(**params)
     exception_header = '\n' + '=' * 80 + '\nREQUEUE EXCEPTION LOG\n\n'
-    exceptions.debug(exception_header + mail_body)
-    return mail_body
+    logger.debug(exception_header + mail_body)
+
+    #Try to send the mail if recipients provided
+    if mail_settings['recipients']:
+        smtp = smtplib.SMTP(mail_settings['server'])
+        msg = MIMEText(mail_body)
+        msg['Subject'] = subject
+        msg['From'] = mail_settings['sender']
+        msg['To'] = ', '.join(mail_settings['recipients'])
+        smtp.sendmail(mail_settings['sender'], mail_settings['recipients'], msg.as_string())
+
+
+def send_requeue_traceback(*args):
+    send_traceback(
+        *args,
+        template=REQUEUE_TEMPLATE,
+        logger=requeued,
+        subject='MaxBunny message REQUEUED')
+
+
+def send_drop_traceback(*args):
+    send_traceback(
+        *args,
+        template=DROP_TEMPLATE,
+        logger=dropped,
+        subject='MaxBunny message DROPPED')
 
 
 def get_message_uuid(rabbitpy_message):

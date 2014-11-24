@@ -4,6 +4,7 @@ from maxbunny.clients import MaxClientsWrapper
 import ConfigParser
 import importlib
 import logging
+import os
 import re
 import multiprocessing
 

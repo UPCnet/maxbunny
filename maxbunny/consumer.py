@@ -2,8 +2,10 @@
 from rabbitpy.exceptions import ConnectionResetException
 from rabbitpy.exceptions import AMQPNotFound
 from rabbitpy.exceptions import AMQPConnectionForced
+
 from maxclient.rest import RequestError
-from maxbunny.utils import get_message_uuid, send_requeue_traceback
+from maxbunny.utils import get_message_uuid, send_requeue_traceback, send_drop_traceback
+from maxcarrot.message import MaxCarrotParsingError
 
 import logging
 import multiprocessing
@@ -71,7 +73,14 @@ class BunnyConsumer(object):
 
     def __configure__(self, runner):
         self.ready = runner.workers_ready
-        self.on_restart = runner.restart
+        self.mail_settings = {
+            "server": runner.config.get('main', 'smtp_server'),
+            "sender": runner.config.get('main', 'notify_address'),
+            "recipients": runner.config.get('main', 'notify_recipients')
+        }
+
+        self.mail_settings['recipients'] = self.mail_settings['recipients'].strip().split(',')
+        print self.mail_settings
         self.rabbitmq_server = runner.rabbitmq_server
         self.clients = runner.clients
         self.logging_folder = runner.config.get('main', 'logging_folder')
@@ -106,7 +115,7 @@ class BunnyConsumer(object):
             self.workers.append(worker)
             worker.start()
 
-    def restart_worker(self, message="Crashed by unknown exception"):
+    def restart_worker(self, message):
         """
             Restarts a workers without exiting its process
         """
@@ -141,7 +150,8 @@ class BunnyConsumer(object):
         if not nowait:
             # Wait for all workers to start eating carrots
             self.ready.wait()
-            self.logger.info('Worker {} ready'.format(self.wid))
+
+        self.logger.info('Worker {} ready'.format(self.wid))
 
         # Start consuming messages
         try:
@@ -149,15 +159,15 @@ class BunnyConsumer(object):
                 if message:
                     self.__process__(message)
         except KeyboardInterrupt:
-            self.logger.warning('Exiting Worker {}, {}'.format(self.wid, 'User Canceled'))
+            self.logger.warning('User Canceled')
         except AMQPNotFound as exc:
-            self.logger.warning('Exiting Worker {}, {}'.format(self.wid, exc.message.reply_text))
+            self.logger.warning('AMQPNotFound: {}'.format(exc.message.reply_text))
         except ConnectionResetException:
             self.restart_worker('Rabbit Connection Reset')
         except AMQPConnectionForced:
             self.restart_worker('Forced Connection Close')
         except Exception as exc:
-            self.restart_worker()
+            self.restart_worker('{}: {}'.format(exc.__class__.__name__, exc.message))
 
     def ack(self, message):
         """
@@ -166,14 +176,24 @@ class BunnyConsumer(object):
         message.ack()
 
     def nack(self, message, error):
-        uuid = get_message_uuid(message)
         """
             Drops the message and sends nack to rabbitmq.
         """
-        self.logger.warning('Message {} droped, reason: {}'.format(uuid, error.message))
+        uuid = get_message_uuid(message)
+        nouuid_error = ' (NO_UUID)' if not uuid else ''
+        self.logger.warning('Message dropped{}, reason: {}'.format(nouuid_error, error))
+
         if uuid in self.requeued:
             self.requeued.remove(uuid)
         message.nack()
+
+        error_log = traceback.format_exc()
+
+        send_drop_traceback(
+            self.mail_settings,
+            self.name,
+            error_log,
+            message)
 
     def requeue(self, message, error):
         """
@@ -182,18 +202,17 @@ class BunnyConsumer(object):
         """
         uuid = get_message_uuid(message)
         if uuid is None:
-            self.logger.warning('Cannot requeue message without UUID, canceling)')
-            message.nack()
+            self.nack(message, error.message)
         else:
             if uuid not in self.requeued:
-                self.logger.warning('Message {} reueued, reason: {}'.format(uuid, error.message))
+                self.logger.warning('Message {} reueued, reason: {}'.format(uuid, error))
                 error_log = traceback.format_exc()
-                mail = send_requeue_traceback(
-                    'carlesba@gmail.com',
+                send_requeue_traceback(
+                    self.mail_settings,
                     self.name,
                     error_log,
                     message)
-                #print mail
+
                 self.requeued.append(uuid)
             message.nack(requeue=True)
 
@@ -205,10 +224,10 @@ class BunnyConsumer(object):
         try:
             self.process(message)
         except BunnyMessageCancel as error:
-            self.nack(message, error)
+            self.nack(message, error.message)
 
         except BunnyMessageRequeue as error:
-            self.requeue(message, error)
+            self.requeue(message, error.message)
 
         # Catch maxclient exceptions
         except RequestError as error:
@@ -219,7 +238,9 @@ class BunnyConsumer(object):
             # Cancel message on any other error code
             else:
                 error.message = 'Max server error: ' + error.message
-                self.nack(message, error)
+                self.nack(message, error.message)
+        except MaxCarrotParsingError:
+            self.nack(message, 'MaxCarrot Parsing error')
         # Requeue messages on unknown consumer failures
         except Exception as error:
             error.message = 'Consumer failure: ' + error.message

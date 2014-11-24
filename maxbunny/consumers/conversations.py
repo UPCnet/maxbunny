@@ -19,9 +19,15 @@ class ConversationsConsumer(BunnyConsumer):
     def process(self, rabbitpy_message):
         """
         """
-        message = RabbitMessage.unpack(rabbitpy_message.json())
+        message = RabbitMessage.unpack(rabbitpy_message.body)
 
-        conversation_id = re.search(r'(\w+).messages', rabbitpy_message.routing_key).groups()[0]
+        match = re.search(r'(\w+).messages', rabbitpy_message.routing_key)
+
+        if match:
+            conversation_id = match.groups()[0]
+        else:
+            raise BunnyMessageCancel('Conversation id missing on routing_key "{}"'.format(rabbitpy_message.routing_key))
+
         domain = extract_domain(message)
 
         # determine message object type
