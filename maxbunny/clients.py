@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from maxclient.wsgi import MaxClient
 from maxbunny import BUNNY_NO_DOMAIN
-import re
 
 
 class MaxClientsWrapper(object):
@@ -16,39 +15,37 @@ class MaxClientsWrapper(object):
         self.default_domain = default_domain
 
     def get_all(self):
-        for instance_id, data in self.maxclients.items():
-            yield instance_id, data['client']
+        for instance_id, client in self.maxclients.items():
+            yield instance_id, client
 
     def client_ids_by_hashtag(self):
         mapping = {}
-        for instance_id, data in self.maxclients.items():
-            mapping[data['hashtag']] = instance_id
+        for instance_id, client in self.maxclients.items():
+            mapping[client.metadata['hashtag']] = instance_id
         return mapping
 
     def load_instances(self):
         """
             Loads instances and parses all maxservers. For each maxserver
-            a maxclient with key "max_xxxxxx" is stored on self.maxclients
+            a maxclient with key="maxserver domain" is stored on self.maxclients
         """
-        max_instances = [maxserver for maxserver in self.instances.sections() if maxserver.startswith('max_')]
+        max_instances = [maxserver for maxserver in self.instances.sections()]
 
         # Instantiate a maxclient for each maxserver
         for maxserver in max_instances:
-            maxclient = MaxClient(url=self.instances.get(maxserver, 'server'), oauth_server=self.instances.get(maxserver, 'oauth_server'))
+            maxclient = MaxClient(url=self.instances.get(maxserver, 'server'))
             maxclient.setActor(self.instances.get(maxserver, 'restricted_user'))
             maxclient.setToken(self.instances.get(maxserver, 'restricted_user_token'))
-            maxclient_data = {
-                "client": maxclient,
-                "hashtag": self.instances.get(maxserver, 'hashtag'),
-                "language": self.instances.get(maxserver, 'language')
+            maxclient.metadata = {
+                "hashtag": self.instances.get(maxserver, 'hashtag', ''),
+                "language": self.instances.get(maxserver, 'language', 'ca')
             }
-            domain_id = re.sub(r'max_(.*?)', r'\1', maxserver)
-            self.maxclients[domain_id] = maxclient_data
+            self.maxclients[maxserver] = maxclient
 
     def get_client_language(self, key):
         client_domain_key = self.default_domain if key is BUNNY_NO_DOMAIN else key
         maxclient = self.maxclients.get(client_domain_key, None)
-        return maxclient['language']
+        return maxclient.metadata['language']
 
     def __getitem__(self, key):
         """
@@ -64,4 +61,4 @@ class MaxClientsWrapper(object):
             if maxclient is None:
                 return None
 
-        return maxclient['client']
+        return maxclient

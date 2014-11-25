@@ -80,7 +80,6 @@ class BunnyConsumer(object):
         }
 
         self.mail_settings['recipients'] = self.mail_settings['recipients'].strip().split(',')
-        print self.mail_settings
         self.rabbitmq_server = runner.rabbitmq_server
         self.clients = runner.clients
         self.logging_folder = runner.config.get('main', 'logging_folder')
@@ -114,6 +113,13 @@ class BunnyConsumer(object):
                 target=self.consume)
             self.workers.append(worker)
             worker.start()
+
+    def stop(self):
+        """
+            Stops the current process worker connection
+        """
+        self.logger.warning('Disconnecting worker {}'.format(self.wid))
+        self.channels[self.wid]['connection'].close()
 
     def restart_worker(self, message):
         """
@@ -160,6 +166,7 @@ class BunnyConsumer(object):
                     self.__process__(message)
         except KeyboardInterrupt:
             self.logger.warning('User Canceled')
+            self.stop()
         except AMQPNotFound as exc:
             self.logger.warning('AMQPNotFound: {}'.format(exc.message.reply_text))
         except ConnectionResetException:
