@@ -1,11 +1,17 @@
 Changelog
 =========
 
-4.0.10 (unreleased)
+4.0.10 (2014-11-25)
 -------------------
 
-- Nothing changed yet.
-
+* Don't crash if maxserver not available [Carles Bruguera]
+* Unify instances file format with bigmax [Carles Bruguera]
+* Improve logging of reqeues and drops [Carles Bruguera]
+* Parametrize mail settings [Carles Bruguera]
+* Send and log drops [Carles Bruguera]
+* Refactor maxbunny using multiprocessing approach [Carles Bruguera]
+* Do not try to send push if keys not configured [Carles Bruguera]
+* Fix default domain getter [Carles Bruguera]
 
 4.0.9 (2014-10-27)
 ------------------
