@@ -1,11 +1,10 @@
 Changelog
 =========
 
-4.0.11 (unreleased)
+4.0.11 (2014-11-25)
 -------------------
 
-- Nothing changed yet.
-
+* Don't crash if user data missing [Carles Bruguera]
 
 4.0.10 (2014-11-25)
 -------------------
