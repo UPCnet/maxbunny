@@ -11,7 +11,6 @@ class MaxClientsWrapper(object):
     def __init__(self, instances, default_domain):
         self.instances = instances
         self.maxclients = {}
-        self.load_instances()
         self.default_domain = default_domain
 
     def get_all(self):
@@ -30,17 +29,25 @@ class MaxClientsWrapper(object):
             a maxclient with key="maxserver domain" is stored on self.maxclients
         """
         max_instances = [maxserver for maxserver in self.instances.sections()]
+        failed = []
 
         # Instantiate a maxclient for each maxserver
+        # Catch exceptions related to the connection with the maxserver
         for maxserver in max_instances:
             maxclient = MaxClient(url=self.instances.get(maxserver, 'server'))
             maxclient.setActor(self.instances.get(maxserver, 'restricted_user'))
-            maxclient.setToken(self.instances.get(maxserver, 'restricted_user_token'))
-            maxclient.metadata = {
-                "hashtag": self.instances.get(maxserver, 'hashtag', ''),
-                "language": self.instances.get(maxserver, 'language', 'ca')
-            }
-            self.maxclients[maxserver] = maxclient
+            try:
+                maxclient.setToken(self.instances.get(maxserver, 'restricted_user_token'))
+            except:
+                failed.append(maxserver)
+            else:
+                maxclient.metadata = {
+                    "hashtag": self.instances.get(maxserver, 'hashtag', ''),
+                    "language": self.instances.get(maxserver, 'language', 'ca')
+                }
+                self.maxclients[maxserver] = maxclient
+
+        return failed
 
     def get_client_language(self, key):
         client_domain_key = self.default_domain if key is BUNNY_NO_DOMAIN else key

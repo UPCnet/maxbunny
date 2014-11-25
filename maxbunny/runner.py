@@ -4,7 +4,6 @@ from maxbunny.clients import MaxClientsWrapper
 import ConfigParser
 import importlib
 import logging
-import os
 import re
 import multiprocessing
 
@@ -23,6 +22,9 @@ class BunnyRunner(object):
 
         self.rabbitmq_server = self.common.get('rabbitmq', 'server')
         self.clients = MaxClientsWrapper(self.instances, self.config.get('main', 'default_domain'))
+        failed = self.clients.load_instances()
+        for maxserver in failed:
+            logger.error('Error loading maxclient for [{}]'.format(maxserver))
 
         self.consumers = {}
         self.workers_ready = multiprocessing.Event()
