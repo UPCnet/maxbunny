@@ -35,8 +35,8 @@ class MaxClientsWrapper(object):
         # Catch exceptions related to the connection with the maxserver
         for maxserver in max_instances:
             maxclient = MaxClient(url=self.instances.get(maxserver, 'server'))
-            maxclient.setActor(self.instances.get(maxserver, 'restricted_user'))
             try:
+                maxclient.setActor(self.instances.get(maxserver, 'restricted_user'))
                 maxclient.setToken(self.instances.get(maxserver, 'restricted_user_token'))
             except:
                 failed.append(maxserver)
