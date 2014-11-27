@@ -1,11 +1,10 @@
 Changelog
 =========
 
-4.0.12 (unreleased)
+4.0.12 (2014-11-27)
 -------------------
 
-- Nothing changed yet.
-
+* Depend on gevent [Carles Bruguera]
 
 4.0.11 (2014-11-25)
 -------------------

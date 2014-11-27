@@ -16,7 +16,7 @@ requires = [
 ]
 
 setup(name='maxbunny',
-      version='4.0.12.dev0',
+      version='4.0.12',
       description='Consumer of AMPQ queues for MAX',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
