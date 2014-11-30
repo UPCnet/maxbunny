@@ -94,5 +94,16 @@ class BunnyRunner(object):
             for consumer_id, consumer in self.consumers.items():
                 for worker in consumer.workers:
                     worker.join()
-        except:
+        except OSError:
+            logger.error('MaxBunny exiting now, forced death of all children :( ...')
+        except Exception:
             logger.warning('MaxBunny exiting now...')
+
+    def stop(self, *args):
+        """
+            Stops all consumer workers
+        """
+        for consumer in self.consumers.values():
+            for worker in consumer.workers:
+                if worker.is_alive():
+                    worker.terminate()

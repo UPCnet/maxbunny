@@ -5,6 +5,7 @@ import argparse
 import logging
 import os
 import sys
+import signal
 
 LOGGER = logging.getLogger('bunny')
 BUNNY_NO_DOMAIN = 0x01
@@ -41,6 +42,8 @@ def main(argv=sys.argv, quiet=False):  # pragma: no cover
     setup_logging(options.configfile)
 
     runner = BunnyRunner(config)
+
+    signal.signal(signal.SIGTERM, runner.stop)
     runner.start()
 
 if __name__ == '__main__':

@@ -12,6 +12,7 @@ import multiprocessing
 import rabbitpy
 import traceback
 import time
+import thread
 
 
 class BunnyMessageRequeue(Exception):
@@ -114,6 +115,13 @@ class BunnyConsumer(object):
             self.workers.append(worker)
             worker.start()
 
+    def stop_all(self):
+        """
+            Stops all consumer's workers_ready
+        """
+        for channel in self.channels:
+            channel['connection'].close()
+
     def stop(self):
         """
             Stops the current process worker connection
@@ -173,8 +181,29 @@ class BunnyConsumer(object):
             self.restart_worker('Rabbit Connection Reset')
         except AMQPConnectionForced:
             self.restart_worker('Forced Connection Close')
+        except thread.error:
+            self.logger.error('TERM Signal Received. Dying ...')
+        except AttributeError as exc:
+            self.terminate(exc)
+        except AssertionError as exc:
+            self.terminate(exc)
         except Exception as exc:
-            self.restart_worker('{}: {}'.format(exc.__class__.__name__, exc.message))
+            self.restart_worker('{}: {}'.format(exc.__class__, exc.message))
+
+    def terminate(self, exc):
+        """
+            Evaluate if it's an exception caused by the TERM
+            signal shutdown procedure.
+
+            Restart worker if it's not.
+        """
+        failed_terminate = 'terminate' in exc.message
+        failed_child_check = 'child process' in exc.message
+
+        if failed_terminate or failed_child_check:
+            self.logger.error('Received TERM Signal. Killing {} ...'.format(self.wid))
+        else:
+            self.restart_worker('{}: {}'.format(exc.__class__, exc.message))
 
     def ack(self, message):
         """
