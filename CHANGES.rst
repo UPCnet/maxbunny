@@ -1,11 +1,10 @@
 Changelog
 =========
 
-4.0.13 (unreleased)
+4.0.13 (2014-12-01)
 -------------------
 
-- Nothing changed yet.
-
+* Handle TERM signal to stop all workers [Carles Bruguera]
 
 4.0.12 (2014-11-27)
 -------------------
