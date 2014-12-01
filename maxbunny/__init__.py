@@ -13,7 +13,9 @@ BUNNY_NO_DOMAIN = 0x01
 from maxbunny.runner import BunnyRunner
 from maxbunny.utils import setup_logging
 from maxbunny.patches import patch_client_properties
+from maxbunny.patches import patch_ssl_method
 
+patch_ssl_method()
 patch_client_properties()
 
 
