@@ -1,11 +1,10 @@
 Changelog
 =========
 
-4.0.14 (unreleased)
+4.0.14 (2014-12-01)
 -------------------
 
-- Nothing changed yet.
-
+* Recover SSL method patch [Carles Bruguera]
 
 4.0.13 (2014-12-01)
 -------------------
