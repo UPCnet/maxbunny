@@ -1,11 +1,12 @@
 Changelog
 =========
 
-4.0.16 (unreleased)
+4.0.16 (2014-12-04)
 -------------------
 
-- Nothing changed yet.
-
+* Make notify conditional on BunnyMessageCancel [Carles Bruguera]
+* Choose what exceptions send notifications [Carles Bruguera]
+* Don't send mail if there are no recipients [Carles Bruguera]
 
 4.0.15 (2014-12-04)
 -------------------
