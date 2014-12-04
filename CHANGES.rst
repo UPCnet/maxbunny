@@ -1,11 +1,11 @@
 Changelog
 =========
 
-4.0.15 (unreleased)
+4.0.15 (2014-12-04)
 -------------------
 
-- Nothing changed yet.
-
+* Use WatchedFileHandler to be aware of logrotate [Carles Bruguera]
+* Default must be a list [Carles Bruguera]
 
 4.0.14 (2014-12-01)
 -------------------
