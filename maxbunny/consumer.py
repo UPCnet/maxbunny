@@ -12,6 +12,7 @@ from logging.handlers import WatchedFileHandler
 import logging
 import multiprocessing
 import rabbitpy
+import re
 import traceback
 import time
 import thread
@@ -82,7 +83,7 @@ class BunnyConsumer(object):
             "recipients": runner.config.get('main', 'notify_recipients')
         }
 
-        self.mail_settings['recipients'] = self.mail_settings['recipients'].strip().split(',')
+        self.mail_settings['recipients'] = re.findall(r'[^\s,; ]+', self.mail_settings['recipients'])
         self.rabbitmq_server = runner.rabbitmq_server
         self.clients = runner.clients
         self.logging_folder = runner.config.get('main', 'logging_folder')

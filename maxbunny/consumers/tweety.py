@@ -47,8 +47,6 @@ class TweetyConsumer(BunnyConsumer):
 
         # Lowercased author to perform checks along the code
         author = twitter_message.get('author').lower()
-        if 'author' == 'janetdura':
-            import ipdb;ipdb.set_trace()
 
         self.logger.info(u" Processing tweet {stid} from {author} with content: {message}".format(**twitter_message))
 
