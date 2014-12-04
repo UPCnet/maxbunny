@@ -7,6 +7,8 @@ from maxclient.rest import RequestError
 from maxbunny.utils import get_message_uuid, send_requeue_traceback, send_drop_traceback
 from maxcarrot.message import MaxCarrotParsingError
 
+from logging.handlers import WatchedFileHandler
+
 import logging
 import multiprocessing
 import rabbitpy
@@ -96,7 +98,7 @@ class BunnyConsumer(object):
         formatter = logging.Formatter('%(levelname)s %(asctime)s %(message)s')
 
         logname = self.logname if hasattr(self, 'logname') else '{}.log'.format(self.name)
-        handler = logging.FileHandler('{}/{}'.format(self.logging_folder, logname))
+        handler = WatchedFileHandler('{}/{}'.format(self.logging_folder, logname))
         handler.setFormatter(formatter)
         handler.setLevel(logging.INFO)
 
