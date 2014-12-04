@@ -28,6 +28,9 @@ class BunnyMessageCancel(Exception):
     """
         To be raised when a message has to be canceled
     """
+    def __init__(self, *args, **kwargs):
+        self.notify = kwargs.pop('notify', True)
+        super(BunnyMessageCancel, self).__init__(*args, **kwargs)
 
 
 class BunnyConsumer(object):
@@ -214,25 +217,25 @@ class BunnyConsumer(object):
         """
         message.ack()
 
-    def nack(self, message, error):
+    def nack(self, message, error, notify=True):
         """
             Drops the message and sends nack to rabbitmq.
         """
         uuid = get_message_uuid(message)
         nouuid_error = ' (NO_UUID)' if not uuid else ''
         self.logger.warning('Message dropped{}, reason: {}'.format(nouuid_error, error))
-
         if uuid in self.requeued:
             self.requeued.remove(uuid)
         message.nack()
 
         error_log = traceback.format_exc()
 
-        send_drop_traceback(
-            self.mail_settings,
-            self.name,
-            error_log,
-            message)
+        if notify:
+            send_drop_traceback(
+                self.mail_settings,
+                self.name,
+                error_log,
+                message)
 
     def requeue(self, message, error):
         """
@@ -263,7 +266,7 @@ class BunnyConsumer(object):
         try:
             self.process(message)
         except BunnyMessageCancel as error:
-            self.nack(message, error.message)
+            self.nack(message, error.message, notify=error.notify)
 
         except BunnyMessageRequeue as error:
             self.requeue(message, error.message)

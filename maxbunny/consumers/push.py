@@ -28,7 +28,6 @@ class PushConsumer(BunnyConsumer):
         """
         """
         if not self.ios_push_certificate_file and not self.android_push_api_key:
-            return
             raise BunnyMessageCancel('PUSH keys not configured')
 
         packed_message = rabbitpy_message.json()
@@ -119,7 +118,7 @@ class PushConsumer(BunnyConsumer):
             raise BunnyMessageCancel('The activity received has an unknown object type')
 
         if tokens is None:
-            raise BunnyMessageCancel('No tokens received')
+            raise BunnyMessageCancel('No tokens received', notify=False)
 
         for token in tokens:
             tokens_by_platform.setdefault(token.get('platform'), [])
@@ -146,7 +145,7 @@ class PushConsumer(BunnyConsumer):
             except Exception as error:
                 exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.__name__)
                 return_message = "iOS device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['iOS'], exception_class, error.message)
-                raise BunnyMessageCancel(return_message)
+                raise BunnyMessageCancel(return_message, notify=False)
 
         if self.android_push_api_key and tokens_by_platform.get('android', []):
             try:
@@ -154,7 +153,7 @@ class PushConsumer(BunnyConsumer):
             except Exception as error:
                 exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.__name__)
                 return_message = "Android device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['android'], exception_class, error.message)
-                raise BunnyMessageCancel(return_message)
+                raise BunnyMessageCancel(return_message, notify=False)
 
         return
 

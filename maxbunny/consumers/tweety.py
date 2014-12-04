@@ -72,7 +72,7 @@ class TweetyConsumer(BunnyConsumer):
             # if not, discard it
             if author not in self.get_registered_twitter_usernames_by_name(self.users):
                 return_message = u"Discarding tweet {stid} from {author} : There's no MAX user with that twitter username.".format(**twitter_message)
-                raise BunnyMessageCancel(return_message)
+                raise BunnyMessageCancel(return_message, notify=False)
 
             # Parse text and determine its corresponding MAX server
             # ASSUMPTION:
@@ -121,7 +121,7 @@ class TweetyConsumer(BunnyConsumer):
                 self.post_message_to_max(context_assigned, username, twitter_message)
             else:
                 return_message = u"Discarding tweet {} from {} with unknown (probably debug) global hashtag found in [{}]".format(twitter_message.get('stid'), twitter_message.get('author'), ', '.join(message_hastags))
-                raise BunnyMessageCancel()
+                raise BunnyMessageCancel(return_message)
         raise BunnyMessageCancel()
 
     def get_twitter_enabled_contexts(self):
