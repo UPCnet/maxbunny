@@ -36,7 +36,7 @@ def main(argv=sys.argv, quiet=False):  # pragma: no cover
     config = ConfigParser.SafeConfigParser({
         "smtp_server": "localhost",
         "notify_address": "noreply@{}".format(os.uname()[1]),
-        "notify_recipients": ""
+        "notify_recipients": []
     })
 
     config.read(options.configfile)
