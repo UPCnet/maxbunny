@@ -1,133 +1,182 @@
 # -*- coding: utf-8 -*-
-from maxclient import MaxClient
-from maxbunny.tweety import TweetyMessage
-from maxbunny.tests.mockers import contexts, users, response_followed_user, response_hashtag
+from maxbunny.consumer import BunnyMessageCancel
+from maxbunny.tests import MockRunner
+from maxbunny.tests import MaxBunnyTestCase
 
-import ConfigParser
 import httpretty
 import json
-import unittest
-import os
+import re
 
 
-class bunnyMock(object):
-    def __init__(self):
-        conf_dir = os.path.dirname(__file__)
-        self.restricted_username = 'victor.fernandez'
-        self.restricted_token = 'uj5v4XrWMxGP25CN3pAE39mYCL7cwBMV'
-
-        self.config = ConfigParser.ConfigParser()
-        self.config.read(os.path.join(conf_dir, "maxbunny.ini"))
-
-        self.maxservers_settings = [maxserver for maxserver in self.config.sections() if maxserver.startswith('max_')]
-
-        # Instantiate a maxclient for each maxserver
-        self.maxclients = {}
-        for maxserver in self.maxservers_settings:
-            maxclient = MaxClient(url=self.config.get(maxserver, 'server'), oauth_server=self.config.get(maxserver, 'oauth_server'))
-            maxclient.setActor(self.restricted_username)
-            maxclient.setToken(self.restricted_token)
-            self.maxclients[maxserver] = maxclient
+def http_mock_info():
+    httpretty.register_uri(
+        httpretty.GET, "http://tests.local/info",
+        body='{"max.oauth_server": "http://oauth.local"}',
+        status=200,
+        content_type="application/json"
+    )
 
 
-class TweetyTests(unittest.TestCase):
+def http_mock_contexts(contexts):
+    httpretty.register_uri(
+        httpretty.GET, "http://tests.local/contexts?limit=0&twitter_enabled=True",
+        body=json.dumps(contexts),
+        status=200,
+        content_type="application/json"
+    )
+
+
+def http_mock_users(users):
+    httpretty.register_uri(
+        httpretty.GET, "http://tests.local/people?limit=0&twitter_enabled=True",
+        body=json.dumps(users),
+        status=200,
+        content_type="application/json"
+    )
+
+
+def http_mock_post_context_activity():
+    httpretty.register_uri(
+        httpretty.POST, re.compile("http://tests.local/contexts/\w+/activities"),
+        body=json.dumps({}),
+        status=200,
+        content_type="application/json"
+    )
+
+
+def http_mock_post_user_activity():
+    httpretty.register_uri(
+        httpretty.POST, re.compile("http://tests.local/people/\w+/activities"),
+        body=json.dumps({}),
+        status=201,
+        content_type="application/json"
+    )
+
+
+class TweetyTests(MaxBunnyTestCase):
     def setUp(self):
         pass
 
     def tearDown(self):
         pass
 
-    @httpretty.activate
-    def test_tweet_from_followed_user(self):
-        httpretty.register_uri(httpretty.GET, "http://localhost:8081/contexts",
-                           body=json.dumps(contexts),
-                           status=200,
-                           content_type="application/json")
-        httpretty.register_uri(httpretty.GET, "http://localhost:8081/people",
-                           body=json.dumps(users),
-                           status=200,
-                           content_type="application/json")
-        httpretty.register_uri(httpretty.POST, "http://localhost:8081/contexts/8523ab8065a69338d5006c34310dc8d2c0179ebb/activities",
-                           body=json.dumps(response_followed_user),
-                           status=201,
-                           content_type="application/json")
-        bunny = bunnyMock()
-        body = json.dumps({'stid': '123123123', 'author': 'sunbit', 'message': 'Hellooooo'})
-        responses = TweetyMessage(bunny, body).process()
-        self.failUnless(responses)
-        for response in responses:
-            self.assertIn('201', response)
+    def test_invalid_message(self):
+        """
+        """
+        from maxbunny.consumers.tweety import __consumer__
+        from maxbunny.tests.mockers import BAD_MESSAGE as message
+
+        runner = MockRunner('tweety', 'maxbunny.ini')
+        consumer = __consumer__(runner)
+
+        with self.assertRaises(BunnyMessageCancel):
+            consumer.process(message)
 
     @httpretty.activate
-    def test_tweet_with_a_hashtag(self):
-        httpretty.register_uri(httpretty.GET, "http://localhost:8081/contexts",
-                           body=json.dumps(contexts),
-                           status=200,
-                           content_type="application/json")
-        httpretty.register_uri(httpretty.GET, "http://localhost:8081/people",
-                           body=json.dumps(users),
-                           status=200,
-                           content_type="application/json")
-        httpretty.register_uri(httpretty.POST, "http://localhost:8081/people/victor.fernandez/activities",
-                           body=json.dumps(response_hashtag),
-                           status=201,
-                           content_type="application/json")
-        bunny = bunnyMock()
-        body = json.dumps({'stid': '123123123', 'author': 'sneridagh', 'message': 'This is a post with #upc #thehashtag'})
-        responses = TweetyMessage(bunny, body).process()
-        self.failUnless(responses)
-        for response in responses:
-            self.assertIn('201', response)
+    def test_tweet_from_maxuser_to_context_max_empty(self):
+        from maxbunny.consumers.tweety import __consumer__
+        from maxbunny.tests.mockers import TWEETY_MESSAGE_FROM_CONTEXT as message
+        from maxbunny.tests.mockers import NO_CONTEXTS as contexts
+        from maxbunny.tests.mockers import NO_USERS as users
+
+        http_mock_info()
+        http_mock_contexts(contexts)
+        http_mock_users(users)
+
+        runner = MockRunner('tweety', 'maxbunny.ini')
+        consumer = __consumer__(runner)
+
+        self.assertRaisesWithMessage(
+            BunnyMessageCancel,
+            "Discarding tweet 0 from twitter_user : There's no MAX user with that twitter username.",
+            consumer.process,
+            message
+        )
 
     @httpretty.activate
-    def test_tweet_with_invalid_hashtag(self):
-        httpretty.register_uri(httpretty.GET, "http://localhost:8081/contexts",
-                           body=json.dumps(contexts),
-                           status=200,
-                           content_type="application/json")
-        httpretty.register_uri(httpretty.GET, "http://localhost:8081/people",
-                           body=json.dumps(users),
-                           status=200,
-                           content_type="application/json")
-        httpretty.register_uri(httpretty.POST, "http://localhost:8081/people/victor.fernandez/activities",
-                           body=json.dumps(response_hashtag),
-                           status=201,
-                           content_type="application/json")
-        bunny = bunnyMock()
-        body = json.dumps({'stid': '123123123', 'author': 'sneridagh', 'message': 'This is a post with #upc #other'})
-        response = TweetyMessage(bunny, body).process()
-        self.assertIn('404', response)
+    def test_tweet_from_maxuser_to_context_no_contexts(self):
+        """
+          Tweet from a followed twitter user (without hashtags), that
+          won't go anywhere because  we didn't find the context it's related to.
+
+          This scenario is matched as if it was a hashtag tweet, with missing second hashtag
+        """
+        from maxbunny.consumers.tweety import __consumer__
+        from maxbunny.tests.mockers import TWEETY_MESSAGE_FROM_CONTEXT as message
+        from maxbunny.tests.mockers import NO_CONTEXTS as contexts
+        from maxbunny.tests.mockers import SINGLE_USER as users
+
+        http_mock_info()
+        http_mock_contexts(contexts)
+        http_mock_users(users)
+
+        runner = MockRunner('tweety', 'maxbunny.ini')
+        consumer = __consumer__(runner)
+
+        self.assertRaisesWithMessage(
+            BunnyMessageCancel,
+            "tweet 0 from twitter_user has only one (global) hashtag.",
+            consumer.process,
+            message
+        )
 
     @httpretty.activate
-    def test_tweet_with_only_a_global_hashtag(self):
-        httpretty.register_uri(httpretty.GET, "http://localhost:8081/contexts",
-                           body=json.dumps(contexts),
-                           status=200,
-                           content_type="application/json")
-        httpretty.register_uri(httpretty.GET, "http://localhost:8081/people",
-                           body=json.dumps(users),
-                           status=200,
-                           content_type="application/json")
-        httpretty.register_uri(httpretty.POST, "http://localhost:8081/people/victor.fernandez/activities",
-                           body=json.dumps(response_hashtag),
-                           status=201,
-                           content_type="application/json")
-        bunny = bunnyMock()
-        body = json.dumps({'stid': '123123123', 'author': 'sneridagh', 'message': 'Només amb el hashtag global... bug or feature? #upc'})
-        response = TweetyMessage(bunny, body).process()
-        self.assertIn('501', response)
+    def test_tweet_from_context_succeed(self):
+        """
+          Tweet from a followed twitter user (without hashtags), that
+          will be written to his related context.
+        """
+        from maxbunny.consumers.tweety import __consumer__
+        from maxbunny.tests.mockers import TWEETY_MESSAGE_FROM_CONTEXT as message
+        from maxbunny.tests.mockers import SINGLE_CONTEXT as contexts
+        from maxbunny.tests.mockers import SINGLE_USER as users
+
+        http_mock_info()
+        http_mock_contexts(contexts)
+        http_mock_users(users)
+        http_mock_post_context_activity()
+
+        runner = MockRunner('tweety', 'maxbunny.ini')
+        consumer = __consumer__(runner)
+        consumer.process(message)
+
+        self.assertEqual(len(consumer.logger.infos), 2)
+        self.assertEqual(len(consumer.logger.warnings), 0)
+
+        self.assertTrue(consumer.logger.infos[0].startswith('Processing tweet'))
+        self.assertTrue(consumer.logger.infos[1].startswith('Successfully posted'))
 
     @httpretty.activate
-    def test_tweet_with_hashtag_no_registered_user(self):
-        httpretty.register_uri(httpretty.GET, "http://localhost:8081/contexts",
-                           body=json.dumps(contexts),
-                           status=200,
-                           content_type="application/json")
-        httpretty.register_uri(httpretty.GET, "http://localhost:8081/people",
-                           body=json.dumps(users),
-                           status=200,
-                           content_type="application/json")
-        bunny = bunnyMock()
-        body = json.dumps({'stid': '123123123', 'author': 'barackobama', 'message': 'Hellooooo #upc #thehashtag'})
-        response = TweetyMessage(bunny, body).process()
-        self.assertIn('404', response)
+    def test_tweet_from_maxuser_to_context_succeed(self):
+        """
+          Tweet from a with a context hashtag, that will be written to his related context
+          with author that is linked with its twitter username
+        """
+        from maxbunny.consumers.tweety import __consumer__
+        from maxbunny.tests.mockers import TWEETY_MESSAGE_FROM_USER as message
+        from maxbunny.tests.mockers import SINGLE_CONTEXT as contexts
+        from maxbunny.tests.mockers import SINGLE_USER as users
+
+        http_mock_info()
+        http_mock_contexts(contexts)
+        http_mock_users(users)
+        http_mock_post_user_activity()
+
+        runner = MockRunner('tweety', 'maxbunny.ini')
+        consumer = __consumer__(runner)
+        consumer.process(message)
+
+        self.assertEqual(len(consumer.logger.infos), 2)
+        self.assertEqual(len(consumer.logger.warnings), 0)
+
+        self.assertTrue(consumer.logger.infos[0].startswith('Processing tweet'))
+        self.assertTrue(consumer.logger.infos[1].startswith('Successfully posted'))
+
+    # @httpretty.activate
+    # def test_tweet_with_invalid_hashtag(self):
+
+    # @httpretty.activate
+    # def test_tweet_with_only_a_global_hashtag(self):
+
+    # @httpretty.activate
+    # def test_tweet_with_hashtag_no_registered_user(self):
