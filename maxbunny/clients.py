@@ -38,8 +38,8 @@ class MaxClientsWrapper(object):
             try:
                 maxclient.setActor(self.instances.get(maxserver, 'restricted_user'))
                 maxclient.setToken(self.instances.get(maxserver, 'restricted_user_token'))
-            except:
-                failed.append(maxserver)
+            except Exception as exc:
+                failed.append((maxserver, exc.message))
             else:
                 maxclient.metadata = {
                     "hashtag": self.instances.get(maxserver, 'hashtag', ''),
