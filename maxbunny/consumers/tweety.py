@@ -45,7 +45,7 @@ class TweetyConsumer(BunnyConsumer):
 
         author = author.lower()
 
-        self.logger.info(u" Processing tweet {stid} from {author} with content: {message}".format(**twitter_message))
+        self.logger.info(u"Processing tweet {stid} from {author} with content: {message}".format(**twitter_message))
 
         followed_users = self.get_followed_users_by_name(self.contexts)
 

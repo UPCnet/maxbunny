@@ -37,7 +37,7 @@ class BunnyConsumer(object):
     name = 'consumer'
     queue = 'amq.queue'
 
-    def __init__(self, runner, workers):
+    def __init__(self, runner, workers=1):
         """
         """
         self.rabbitmq_server = runner.rabbitmq_server
