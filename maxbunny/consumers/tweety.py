@@ -2,13 +2,7 @@
 from maxbunny.consumer import BunnyMessageCancel
 from maxbunny.consumer import BunnyConsumer
 from maxbunny.utils import findHashtags
-from maxbunny.utils import oauth2Header
 from maxcarrot.message import RabbitMessage
-
-import json
-import requests
-import time
-
 
 GENERATOR_ID = 'Twitter'
 
@@ -41,12 +35,15 @@ class TweetyConsumer(BunnyConsumer):
     def process(self, rabbitpy_message):
         """
         """
-
         message = RabbitMessage.unpack(rabbitpy_message.json())
         twitter_message = message.get('data', {})
 
         # Lowercased author to perform checks along the code
-        author = twitter_message.get('author').lower()
+        author = twitter_message.get('author', None)
+        if author is None:
+            raise BunnyMessageCancel('Missing author field on tweet data')
+
+        author = author.lower()
 
         self.logger.info(u" Processing tweet {stid} from {author} with content: {message}".format(**twitter_message))
 
@@ -122,7 +119,6 @@ class TweetyConsumer(BunnyConsumer):
             else:
                 return_message = u"Discarding tweet {} from {} with unknown (probably debug) global hashtag found in [{}]".format(twitter_message.get('stid'), twitter_message.get('author'), ', '.join(message_hastags))
                 raise BunnyMessageCancel(return_message)
-        raise BunnyMessageCancel()
 
     def get_twitter_enabled_contexts(self):
         contexts = {}
