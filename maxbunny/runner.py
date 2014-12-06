@@ -13,11 +13,12 @@ logger = logging.getLogger('bunny')
 
 class BunnyRunner(object):
 
-    def __init__(self, config):
+    def __init__(self, config, debug=False):
         """
             Initialize and prepare plugin workers
         """
         self.config = config
+        self.debug = debug
         self.load_config(config)
 
         self.rabbitmq_server = self.common.get('rabbitmq', 'server')
@@ -29,7 +30,11 @@ class BunnyRunner(object):
         self.consumers = {}
         self.workers_ready = multiprocessing.Event()
 
-        plugin_config = re.findall(r'(\w+)(?::(\d+))?', self.config.get('main', 'plugins'))
+        if self.debug:
+            plugin_config = [(self.debug, 1)]
+        else:
+            plugin_config = re.findall(r'(\w+)(?::(\d+))?', self.config.get('main', 'plugins'))
+
         for plugin_id, workers in plugin_config:
             workers = int(workers) if workers else 1
             Consumer = self.get_consumer_class(plugin_id)
@@ -84,20 +89,36 @@ class BunnyRunner(object):
         """
             Start defined workers for each consumer
         """
+        try:
+            if self.debug:
+                self.start_standalone()
+            else:
+                self.start_multiprocessing()
+        except OSError:
+            logger.error('MaxBunny exiting now, forced death of all children :( ...')
+        # except Exception:
+        #     logger.warning('MaxBunny exiting now...')
+
+    def start_multiprocessing(self):
+        """
+            Start child processes for each consumer
+        """
 
         for consumer_id, consumer in self.consumers.items():
             consumer.start()
 
         self.workers_ready.set()
 
-        try:
-            for consumer_id, consumer in self.consumers.items():
-                for worker in consumer.workers:
-                    worker.join()
-        except OSError:
-            logger.error('MaxBunny exiting now, forced death of all children :( ...')
-        except Exception:
-            logger.warning('MaxBunny exiting now...')
+        for consumer_id, consumer in self.consumers.items():
+            for worker in consumer.workers:
+                worker.join()
+
+    def start_standalone(self):
+        """
+            Start a single blocking consumer in the current process.__class__
+        """
+        consumer = self.consumers[self.debug]
+        consumer.consume(nowait=True)
 
     def stop(self, *args):
         """

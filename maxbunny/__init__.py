@@ -40,10 +40,11 @@ def main(argv=sys.argv, quiet=False):  # pragma: no cover
     })
 
     configfile = os.path.realpath(arguments['--config'])
+    debug = arguments.get('--debug', None)
     config.read(configfile)
     setup_logging(configfile)
 
-    runner = BunnyRunner(config)
+    runner = BunnyRunner(config, debug=debug)
 
     signal.signal(signal.SIGTERM, runner.stop)
     runner.start()

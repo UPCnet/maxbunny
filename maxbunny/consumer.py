@@ -49,6 +49,7 @@ class BunnyConsumer(object):
         self.workers = []
         self.channels = {}
         self.workers_count = workers
+        self.debug = runner.debug
 
     def reset_connection(self):
         """
@@ -63,10 +64,10 @@ class BunnyConsumer(object):
             started
         """
         wrapper = self.channels.setdefault(self.wid, {})
-        if not 'connection' in wrapper:
+        if 'connection' not in wrapper:
             wrapper['connection'] = rabbitpy.Connection(self.rabbitmq_server)
 
-        if not 'channel' in wrapper:
+        if 'channel' not in wrapper:
             wrapper['channel'] = wrapper['connection'].channel()
 
         return wrapper['channel']
@@ -290,7 +291,7 @@ class BunnyConsumer(object):
         else:
             # If message successfull, remove it from requeued
             # (assuming it MAY have been requeued some time ago)
-            # and acknowledge it
+            # and acknowledge it
             self.ack(message)
             uuid = get_message_uuid(message)
             if uuid in self.requeued:
