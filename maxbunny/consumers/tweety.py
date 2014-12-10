@@ -6,8 +6,12 @@ from maxcarrot.message import RabbitMessage
 
 GENERATOR_ID = 'Twitter'
 
-TWITTER_USER_NOT_LINKED_TO_MAX_USER = u"Discarding tweet {stid} from {author} : There's no MAX user with that twitter username."
-NO_SECONDARY_HASHTAGS_FOUND = u"tweet {stid} from {author} has only one (global) hashtag."
+TWITTER_USER_NOT_LINKED_TO_MAX_USER = u'Discarding tweet {stid} from {author} : There\'s no MAX user with that twitter username.'
+NO_SECONDARY_HASHTAGS_FOUND = u'tweet {stid} from {author} has only one (global) hashtag.'
+NO_CONTEXT_FOUND_FOR_HASHTAGS = u'Discarding tweet {stid} from {author} with hashtags {hashtags} : There\'s no registered context with the supplied hashtags.'
+MULTIPLE_CONTEXTS_MATCH_SAME_MAX = u'tweet {stid} from {author} eligible context found in more than one context in the max server "{maxserver}".'
+MULTIPLE_CONTEXTS_MATCH_MULTIPLE_MAX = u'tweet {stid} from {author} eligible context found in more than one max server.'
+MULTIPLE_GLOBAL_HASHTAGS_FOUND = u'tweet {stid} from {author} eligible context found in more than one max server. Tweet won\'t be posted to {maxservers}.'
 
 
 class TweetyConsumer(BunnyConsumer):
@@ -50,21 +54,27 @@ class TweetyConsumer(BunnyConsumer):
 
         self.logger.info(u"Processing tweet {stid} from {author} with content: {message}".format(**twitter_message))
 
-        followed_users = self.get_followed_users_by_name(self.contexts)
+        followed_users_per_max = self.get_followed_users_by_maxserver_name(self.contexts)
 
         # Check if the tweet is from a followed user
-        if author in followed_users:
+        if author in followed_users_per_max:
             # Check if it's assigned to more than one MAX server
-            if len(followed_users[author]) > 1:
-                self.logger.warning(u"tweet {stid} from {author} eligible context found in more than one max server.".format(**twitter_message))
+            if len(followed_users_per_max[author]) > 1:
+                self.logger.warning(MULTIPLE_CONTEXTS_MATCH_MULTIPLE_MAX.format(**twitter_message))
 
-            context_assigned = self.get_context_by_follow_user(followed_users, author)
+            contexts_assigned = self.get_contexts_by_followed_user(followed_users_per_max, author)
 
-            # Check if it's assigned to more than one context
-            if len(context_assigned) > 1:
-                self.logger.warning(u"tweet {stid} from {author} eligible context found in more than one context in the same max server.".format(**twitter_message))
+            contexts_found_per_max = {}
+            for context in contexts_assigned:
+                contexts_found_per_max.setdefault(context['maxserver'], 0)
+                contexts_found_per_max[context['maxserver']] += 1
 
-            self.post_message_to_max_as_context(context_assigned, twitter_message)
+            for maxserver, context_count in contexts_found_per_max.items():
+                # Check if it's assigned to more than one context inside each max
+                if context_count > 1:
+                    self.logger.warning(MULTIPLE_CONTEXTS_MATCH_SAME_MAX.format(maxserver=maxserver, **twitter_message))
+
+            self.post_message_to_max_as_context(contexts_assigned, twitter_message)
 
         # We have a tweet from a tracked hashtag
         else:
@@ -74,54 +84,66 @@ class TweetyConsumer(BunnyConsumer):
                 return_message = TWITTER_USER_NOT_LINKED_TO_MAX_USER.format(**twitter_message)
                 raise BunnyMessageCancel(return_message, notify=False)
 
-            # Parse text and determine its corresponding MAX server
+            # Parse text and separate global from context hashtags
             # ASSUMPTION:
-            # It only uses the first candidate found and discard others so using
-            # two global hashtags will work only for one of them so routing a
-            # tweet to two different MAX servers simultaneously is not supported
-            maxserver = None
-            message_hastags = findHashtags(twitter_message.get('message'))
-            for hashtag in message_hastags:
+
+            message_hashtags = findHashtags(twitter_message.get('message'))
+            found_global_hashtags = []
+            found_context_hashtags = []
+
+            for hashtag in message_hashtags:
                 if hashtag in self.global_hashtags:
-                    maxserver = self.global_hashtags[hashtag]
-                    message_hastags.remove(hashtag)
+                    found_global_hashtags.append(hashtag)
+                else:
+                    found_context_hashtags.append(hashtag)
 
             # ASSUMPTION:
-            # If the message only contains a global hashtag, then discard it
+            # If the message only contains global hashtags, then discard it
             # until further notice. In the future, it will be posted as a
             # 'timeline' message from the sender.
-            if len(message_hastags) == 0:
+            if len(found_context_hashtags) == 0:
                 return_message = NO_SECONDARY_HASHTAGS_FOUND.format(**twitter_message)
                 raise BunnyMessageCancel(return_message)
 
-            registered_hashtags = self.get_all_contexts_by_hashtag(self.contexts)
+            # If we don't have any global hashtag, this tweet is probably being processed
+            # from a debug hashtag, and it will be found on found_context_hashtags
+            # so log it and don't try to add it
+
+            if len(found_global_hashtags) == 0:
+                return_message = u"Discarding tweet {} from {} with unknown (probably debug) global hashtag found in [{}]".format(twitter_message.get('stid'), twitter_message.get('author'), ', '.join(found_context_hashtags))
+                raise BunnyMessageCancel(return_message)
+
+            # Alert of message not being published to multuple max servers
+            if len(found_global_hashtags) > 1:
+                self.logger.warning(MULTIPLE_GLOBAL_HASHTAGS_FOUND.format(maxservers=found_global_hashtags[1:], **twitter_message))
+
+            # If we reached here, we have at least one global hashtag
+            # For now we'll only use the first candidate found and discard others so
+            # hashtag tweest to two different MAX servers simultaneously is not supported
+
+            maxserver = self.global_hashtags[found_global_hashtags[0]]
 
             # Check if any hashtag is registered for a valid MAX context
+            registered_hashtags = self.get_all_contexts_by_hashtag(self.contexts)
             context_hashtags = []
-            for hashtag in message_hastags:
+            for hashtag in found_context_hashtags:
                 if hashtag in registered_hashtags:
                     context_hashtags.append(hashtag)
 
-            # If we don't have any maxserver defined here, probably we're processing a tweet
-            # from a debug hashtag, so log it and don't try to add it
-            if maxserver is not None:
-                context_assigned = self.get_context_by_hashtag(maxserver, context_hashtags)
+            context_assigned = self.get_contexts_by_hashtag(maxserver, context_hashtags)
 
-                # Check if it's assigned to more than one context
-                if len(context_assigned) > 1:
-                    self.logger.warning(u"tweet {stid} from {author} eligible context found in more than one context in the same max server.".format(**twitter_message))
+            # Check if it's assigned to more than one context
+            if len(context_assigned) > 1:
+                self.logger.warning(MULTIPLE_CONTEXTS_MATCH_SAME_MAX.format(maxserver=maxserver, **twitter_message))
 
-                # If we can't find any registered hashtag for any of the message
-                # hashtags, then discard it
-                if len(context_assigned) == 0:
-                    return_message = u"Discarding tweet {} from {} with hashtag {} : There's no registered context with the supplied hashtag.".format(twitter_message.get('stid'), twitter_message.get('author'), unicode(message_hastags))
-                    raise BunnyMessageCancel(return_message)
-
-                username = self.get_username_from_twitter_username(maxserver, author)
-                self.post_message_to_max(context_assigned, username, twitter_message)
-            else:
-                return_message = u"Discarding tweet {} from {} with unknown (probably debug) global hashtag found in [{}]".format(twitter_message.get('stid'), twitter_message.get('author'), ', '.join(message_hastags))
+            # If we can't find anycontext registered for any of the message
+            # hashtags, then discard it
+            if len(context_assigned) == 0:
+                return_message = NO_CONTEXT_FOUND_FOR_HASHTAGS.format(hashtags=unicode(found_context_hashtags), **twitter_message)
                 raise BunnyMessageCancel(return_message)
+
+            username = self.get_username_from_twitter_username(maxserver, author)
+            self.post_message_to_max(context_assigned, username, twitter_message)
 
     def get_twitter_enabled_contexts(self):
         contexts = {}
@@ -137,7 +159,7 @@ class TweetyConsumer(BunnyConsumer):
             users[server_id] = resp
         return users
 
-    def get_followed_users_by_name(self, contexts):
+    def get_followed_users_by_maxserver_name(self, contexts):
         followed_users = {}
 
         for maxserver in contexts.keys():
@@ -168,13 +190,13 @@ class TweetyConsumer(BunnyConsumer):
         context.update({'maxserver': maxserver})
         return context
 
-    def get_context_by_follow_user(self, followed_users, author):
+    def get_contexts_by_followed_user(self, followed_users, author):
         eligible_contexts = []
         for maxserver in followed_users[author]:
             eligible_contexts = eligible_contexts + [self.add_maxserver(context, maxserver) for context in self.contexts[maxserver] if context.get('twitterUsername') == author]
         return eligible_contexts
 
-    def get_context_by_hashtag(self, maxserver, hashtags):
+    def get_contexts_by_hashtag(self, maxserver, hashtags):
         return [self.add_maxserver(context, maxserver) for context in self.contexts[maxserver] if context.get('twitterHashtag') in hashtags]
 
     def get_username_from_twitter_username(self, maxserver, twitter_username):
