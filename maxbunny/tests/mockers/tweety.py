@@ -1,6 +1,4 @@
-from maxbunny.tests import RabbitpyMockMessage
-
-BAD_MESSAGE = RabbitpyMockMessage({})
+from maxbunny.tests.mockers import RabbitpyMockMessage
 
 # A message expected to be sent by @twitter_context_user, to be posted
 # on a context with twitterUsername == twitter_context_user

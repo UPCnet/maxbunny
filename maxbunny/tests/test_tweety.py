@@ -35,7 +35,7 @@ class TweetyTests(MaxBunnyTestCase):
         """
         """
         from maxbunny.consumers.tweety import __consumer__
-        from maxbunny.tests.mockers_tweety import BAD_MESSAGE as message
+        from maxbunny.tests.mockers import BAD_MESSAGE as message
 
         http_mock_info()
 
@@ -59,9 +59,9 @@ class TweetyTests(MaxBunnyTestCase):
 
         """
         from maxbunny.consumers.tweety import __consumer__
-        from maxbunny.tests.mockers_tweety import TWEETY_MESSAGE_FROM_CONTEXT as message
-        from maxbunny.tests.mockers_tweety import NO_CONTEXTS as contexts
-        from maxbunny.tests.mockers_tweety import NO_USERS as users
+        from maxbunny.tests.mockers.tweety import TWEETY_MESSAGE_FROM_CONTEXT as message
+        from maxbunny.tests.mockers.tweety import NO_CONTEXTS as contexts
+        from maxbunny.tests.mockers.tweety import NO_USERS as users
 
         http_mock_info()
         http_mock_contexts(contexts)
@@ -93,9 +93,9 @@ class TweetyTests(MaxBunnyTestCase):
 
         """
         from maxbunny.consumers.tweety import __consumer__
-        from maxbunny.tests.mockers_tweety import TWEETY_MESSAGE_FROM_USER as message
-        from maxbunny.tests.mockers_tweety import NO_CONTEXTS as contexts
-        from maxbunny.tests.mockers_tweety import NO_USERS as users
+        from maxbunny.tests.mockers.tweety import TWEETY_MESSAGE_FROM_USER as message
+        from maxbunny.tests.mockers.tweety import NO_CONTEXTS as contexts
+        from maxbunny.tests.mockers.tweety import NO_USERS as users
 
         http_mock_info()
         http_mock_contexts(contexts)
@@ -126,9 +126,9 @@ class TweetyTests(MaxBunnyTestCase):
             And the message is dropped with message NO_CONTEXT_FOUND_FOR_HASHTAGS
         """
         from maxbunny.consumers.tweety import __consumer__
-        from maxbunny.tests.mockers_tweety import TWEETY_MESSAGE_FROM_USER as message
-        from maxbunny.tests.mockers_tweety import NO_CONTEXTS as contexts
-        from maxbunny.tests.mockers_tweety import SINGLE_USER as users
+        from maxbunny.tests.mockers.tweety import TWEETY_MESSAGE_FROM_USER as message
+        from maxbunny.tests.mockers.tweety import NO_CONTEXTS as contexts
+        from maxbunny.tests.mockers.tweety import SINGLE_USER as users
 
         http_mock_info()
         http_mock_contexts(contexts)
@@ -160,9 +160,9 @@ class TweetyTests(MaxBunnyTestCase):
             And the message is dropped with message NO_SECONDARY_HASHTAGS_FOUND
         """
         from maxbunny.consumers.tweety import __consumer__
-        from maxbunny.tests.mockers_tweety import TWEETY_MESSAGE_FROM_CONTEXT as message
-        from maxbunny.tests.mockers_tweety import NO_CONTEXTS as contexts
-        from maxbunny.tests.mockers_tweety import MIXED_USERS as users
+        from maxbunny.tests.mockers.tweety import TWEETY_MESSAGE_FROM_CONTEXT as message
+        from maxbunny.tests.mockers.tweety import NO_CONTEXTS as contexts
+        from maxbunny.tests.mockers.tweety import MIXED_USERS as users
 
         http_mock_info()
         http_mock_contexts(contexts)
@@ -194,9 +194,9 @@ class TweetyTests(MaxBunnyTestCase):
             And a message is logged
         """
         from maxbunny.consumers.tweety import __consumer__
-        from maxbunny.tests.mockers_tweety import TWEETY_MESSAGE_FROM_USER_DEBUG as message
-        from maxbunny.tests.mockers_tweety import NO_CONTEXTS as contexts
-        from maxbunny.tests.mockers_tweety import SINGLE_USER as users
+        from maxbunny.tests.mockers.tweety import TWEETY_MESSAGE_FROM_USER_DEBUG as message
+        from maxbunny.tests.mockers.tweety import NO_CONTEXTS as contexts
+        from maxbunny.tests.mockers.tweety import SINGLE_USER as users
 
         http_mock_info()
         http_mock_contexts(contexts)
@@ -226,9 +226,9 @@ class TweetyTests(MaxBunnyTestCase):
             And the processing is logged as succesfull
         """
         from maxbunny.consumers.tweety import __consumer__
-        from maxbunny.tests.mockers_tweety import TWEETY_MESSAGE_FROM_CONTEXT as message
-        from maxbunny.tests.mockers_tweety import SINGLE_CONTEXT as contexts
-        from maxbunny.tests.mockers_tweety import SINGLE_USER as users
+        from maxbunny.tests.mockers.tweety import TWEETY_MESSAGE_FROM_CONTEXT as message
+        from maxbunny.tests.mockers.tweety import SINGLE_CONTEXT as contexts
+        from maxbunny.tests.mockers.tweety import SINGLE_USER as users
 
         http_mock_info()
         http_mock_contexts(contexts)
@@ -255,9 +255,9 @@ class TweetyTests(MaxBunnyTestCase):
             And the processing is logged as succesfull
         """
         from maxbunny.consumers.tweety import __consumer__
-        from maxbunny.tests.mockers_tweety import TWEETY_MESSAGE_FROM_USER as message
-        from maxbunny.tests.mockers_tweety import SINGLE_CONTEXT as contexts
-        from maxbunny.tests.mockers_tweety import SINGLE_USER as users
+        from maxbunny.tests.mockers.tweety import TWEETY_MESSAGE_FROM_USER as message
+        from maxbunny.tests.mockers.tweety import SINGLE_CONTEXT as contexts
+        from maxbunny.tests.mockers.tweety import SINGLE_USER as users
 
         http_mock_info()
         http_mock_contexts(contexts)
@@ -286,9 +286,9 @@ class TweetyTests(MaxBunnyTestCase):
             And the processing is logged as succesfull
         """
         from maxbunny.consumers.tweety import __consumer__
-        from maxbunny.tests.mockers_tweety import TWEETY_MESSAGE_FROM_USER as message
-        from maxbunny.tests.mockers_tweety import TWO_MIXED_CONTEXTS as contexts
-        from maxbunny.tests.mockers_tweety import SINGLE_USER as users
+        from maxbunny.tests.mockers.tweety import TWEETY_MESSAGE_FROM_USER as message
+        from maxbunny.tests.mockers.tweety import TWO_MIXED_CONTEXTS as contexts
+        from maxbunny.tests.mockers.tweety import SINGLE_USER as users
 
         http_mock_info()
         http_mock_contexts(contexts)
@@ -320,9 +320,9 @@ class TweetyTests(MaxBunnyTestCase):
             And the processing is logged as succesfull
         """
         from maxbunny.consumers.tweety import __consumer__
-        from maxbunny.tests.mockers_tweety import TWEETY_MESSAGE_FROM_CONTEXT as message
-        from maxbunny.tests.mockers_tweety import SHARED_INFO_CONTEXTS as contexts
-        from maxbunny.tests.mockers_tweety import SINGLE_USER as users
+        from maxbunny.tests.mockers.tweety import TWEETY_MESSAGE_FROM_CONTEXT as message
+        from maxbunny.tests.mockers.tweety import SHARED_INFO_CONTEXTS as contexts
+        from maxbunny.tests.mockers.tweety import SINGLE_USER as users
 
         http_mock_info()
         http_mock_contexts(contexts)
@@ -352,9 +352,9 @@ class TweetyTests(MaxBunnyTestCase):
             And the processing is logged as succesfull
         """
         from maxbunny.consumers.tweety import __consumer__
-        from maxbunny.tests.mockers_tweety import TWEETY_MESSAGE_FROM_USER as message
-        from maxbunny.tests.mockers_tweety import SHARED_INFO_CONTEXTS as contexts
-        from maxbunny.tests.mockers_tweety import SINGLE_USER as users
+        from maxbunny.tests.mockers.tweety import TWEETY_MESSAGE_FROM_USER as message
+        from maxbunny.tests.mockers.tweety import SHARED_INFO_CONTEXTS as contexts
+        from maxbunny.tests.mockers.tweety import SINGLE_USER as users
 
         http_mock_info()
         http_mock_contexts(contexts)
@@ -385,9 +385,9 @@ class TweetyTests(MaxBunnyTestCase):
             And the processing is logged as succesfull
         """
         from maxbunny.consumers.tweety import __consumer__
-        from maxbunny.tests.mockers_tweety import TWEETY_MESSAGE_FROM_USER_TWO_SECONDARY_HASHTAGS as message
-        from maxbunny.tests.mockers_tweety import TWO_HASHTAG_CONTEXTS as contexts
-        from maxbunny.tests.mockers_tweety import SINGLE_USER as users
+        from maxbunny.tests.mockers.tweety import TWEETY_MESSAGE_FROM_USER_TWO_SECONDARY_HASHTAGS as message
+        from maxbunny.tests.mockers.tweety import TWO_HASHTAG_CONTEXTS as contexts
+        from maxbunny.tests.mockers.tweety import SINGLE_USER as users
 
         http_mock_info()
         http_mock_contexts(contexts)
@@ -422,10 +422,10 @@ class TweetyTests(MaxBunnyTestCase):
             And the processing is logged as succesfull
         """
         from maxbunny.consumers.tweety import __consumer__
-        from maxbunny.tests.mockers_tweety import TWEETY_MESSAGE_FROM_CONTEXT as message
-        from maxbunny.tests.mockers_tweety import CONTEXTS_SHARED_MAX_1 as contexts1
-        from maxbunny.tests.mockers_tweety import CONTEXTS_SHARED_MAX_2 as contexts2
-        from maxbunny.tests.mockers_tweety import SINGLE_USER as users
+        from maxbunny.tests.mockers.tweety import TWEETY_MESSAGE_FROM_CONTEXT as message
+        from maxbunny.tests.mockers.tweety import CONTEXTS_SHARED_MAX_1 as contexts1
+        from maxbunny.tests.mockers.tweety import CONTEXTS_SHARED_MAX_2 as contexts2
+        from maxbunny.tests.mockers.tweety import SINGLE_USER as users
 
         http_mock_info()
 
@@ -467,10 +467,10 @@ class TweetyTests(MaxBunnyTestCase):
             And the processing is logged as succesfull
         """
         from maxbunny.consumers.tweety import __consumer__
-        from maxbunny.tests.mockers_tweety import TWEETY_MESSAGE_FROM_USER_TWO_GLOBAL as message
-        from maxbunny.tests.mockers_tweety import CONTEXTS_SHARED_MAX_1 as contexts1
-        from maxbunny.tests.mockers_tweety import CONTEXTS_SHARED_MAX_2 as contexts2
-        from maxbunny.tests.mockers_tweety import SINGLE_USER as users
+        from maxbunny.tests.mockers.tweety import TWEETY_MESSAGE_FROM_USER_TWO_GLOBAL as message
+        from maxbunny.tests.mockers.tweety import CONTEXTS_SHARED_MAX_1 as contexts1
+        from maxbunny.tests.mockers.tweety import CONTEXTS_SHARED_MAX_2 as contexts2
+        from maxbunny.tests.mockers.tweety import SINGLE_USER as users
 
         http_mock_info()
 

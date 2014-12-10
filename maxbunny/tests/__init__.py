@@ -37,7 +37,7 @@ class TestClientsMocker(dict):
 
         for client_no in range(count):
             client_id = client_no + 1 if client_no else ''
-            client = MaxClient('http://tests.local{}'.format(client_id), debug=False)
+            client = MaxClient('http://tests.local{}'.format(client_id), debug=True)
             client.metadata = {'hashtag': 'testing{}'.format(client_id), 'language': 'ca'}
             client.setActor(RESTRICTED_USER)
             client.setToken(RESTRICTED_TOKEN)
@@ -51,14 +51,6 @@ class TestClientsMocker(dict):
         for instance_id, client in self.items():
             mapping[client.metadata['hashtag']] = instance_id
         return mapping
-
-
-class RabbitpyMockMessage(dict):
-    def __init__(self, message):
-        self.update(message)
-
-    def json(self):
-        return dict(self)
 
 
 class MockRunner(object):
