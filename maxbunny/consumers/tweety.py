@@ -94,7 +94,8 @@ class TweetyConsumer(BunnyConsumer):
         else:
             # Check if twitter_username is registered for a valid MAX username
             # if not, discard it
-            if author not in self.get_registered_twitter_usernames_by_name(self.users):
+            registered_twitter_users_info = self.get_registered_twitter_users(self.users)
+            if author not in registered_twitter_users_info:
                 return_message = TWITTER_USER_NOT_LINKED_TO_MAX_USER.format(**twitter_message)
                 raise BunnyMessageCancel(return_message, notify=False)
 
@@ -137,6 +138,9 @@ class TweetyConsumer(BunnyConsumer):
 
             maxserver = self.global_hashtags[found_global_hashtags[0]]
 
+            # Now that we have the elected maxserver, get the user linked with @user on this maxserver
+            username = [username for user_maxserver, username in registered_twitter_users_info[author] if maxserver == user_maxserver][0]
+
             # Check if any hashtag is registered for a valid MAX context
             registered_hashtags = self.get_all_contexts_by_hashtag(self.contexts)
             context_hashtags = []
@@ -150,13 +154,12 @@ class TweetyConsumer(BunnyConsumer):
             if len(context_assigned) > 1:
                 self.logger.warning(MULTIPLE_CONTEXTS_MATCH_SAME_MAX.format(maxserver=maxserver, **twitter_message))
 
-            # If we can't find anycontext registered for any of the message
+            # If we can't find any context registered for any of the message
             # hashtags, then discard it
             if len(context_assigned) == 0:
                 return_message = NO_CONTEXT_FOUND_FOR_HASHTAGS.format(hashtags=unicode(found_context_hashtags), **twitter_message)
                 raise BunnyMessageCancel(return_message)
 
-            username = self.get_username_from_twitter_username(maxserver, author)
             self.post_messages_to_max_as_user(context_assigned, username, twitter_message)
 
     def get_followed_users_by_maxserver_name(self, contexts):
@@ -179,12 +182,12 @@ class TweetyConsumer(BunnyConsumer):
                 hashtags.setdefault(context.get('twitterHashtag'), []).append(maxserver)
         return hashtags
 
-    def get_registered_twitter_usernames_by_name(self, users):
-        registered_usernames = {}
+    def get_registered_twitter_users(self, users):
+        registered_users = {}
         for maxserver in users.keys():
             for user in users[maxserver]:
-                registered_usernames.setdefault(user.get('twitterUsername'), []).append(maxserver)
-        return registered_usernames
+                registered_users.setdefault(user.get('twitterUsername'), []).append((maxserver, user.get('username')))
+        return registered_users
 
     def add_maxserver(self, context, maxserver):
         context.update({'maxserver': maxserver})
@@ -198,11 +201,6 @@ class TweetyConsumer(BunnyConsumer):
 
     def get_contexts_by_hashtag(self, maxserver, hashtags):
         return [self.add_maxserver(context, maxserver) for context in self.contexts[maxserver] if context.get('twitterHashtag') in hashtags]
-
-    def get_username_from_twitter_username(self, maxserver, twitter_username):
-        for user in self.users[maxserver]:
-            if user.get('twitterUsername') == twitter_username:
-                return user.get('username')
 
     def post_messages_to_max_as_context(self, contexts_assigned, message):
         """ Post message to the context of each MAX (ideally only one context in
