@@ -5,43 +5,43 @@ import re
 
 def http_mock_info():
     httpretty.register_uri(
-        httpretty.GET, "http://tests.local/info",
+        httpretty.GET, re.compile("http://tests.\w+/info"),
         body='{"max.oauth_server": "http://oauth.local"}',
         status=200,
         content_type="application/json"
     )
 
 
-def http_mock_contexts(contexts):
+def http_mock_contexts(contexts, uri='tests.local'):
     httpretty.register_uri(
-        httpretty.GET, "http://tests.local/contexts?limit=0&twitter_enabled=True",
+        httpretty.GET, "http://{}/contexts?limit=0&twitter_enabled=True".format(uri),
         body=json.dumps(contexts),
         status=200,
         content_type="application/json"
     )
 
 
-def http_mock_users(users):
+def http_mock_users(users, uri='tests.local'):
     httpretty.register_uri(
-        httpretty.GET, "http://tests.local/people?limit=0&twitter_enabled=True",
+        httpretty.GET, "http://{}/people?limit=0&twitter_enabled=True".format(uri),
         body=json.dumps(users),
         status=200,
         content_type="application/json"
     )
 
 
-def http_mock_post_context_activity():
+def http_mock_post_context_activity(uri='tests.local'):
     httpretty.register_uri(
-        httpretty.POST, re.compile("http://tests.local/contexts/\w+/activities"),
+        httpretty.POST, re.compile("http://{}/contexts/\w+/activities".format(uri)),
         body=json.dumps({}),
         status=200,
         content_type="application/json"
     )
 
 
-def http_mock_post_user_activity():
+def http_mock_post_user_activity(uri='tests.local'):
     httpretty.register_uri(
-        httpretty.POST, re.compile("http://tests.local/people/\w+/activities"),
+        httpretty.POST, re.compile("http://{}/people/\w+/activities".format(uri)),
         body=json.dumps({}),
         status=201,
         content_type="application/json"

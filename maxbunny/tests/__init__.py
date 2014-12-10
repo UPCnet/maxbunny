@@ -33,13 +33,15 @@ class MockLogger(object):
 
 
 class TestClientsMocker(dict):
-    def __init__(self):
-        client = MaxClient('http://tests.local', debug=True)
-        client.metadata = {'hashtag': 'testing', 'language': 'ca'}
-        client.setActor(RESTRICTED_USER)
-        client.setToken(RESTRICTED_TOKEN)
+    def __init__(self, count=1):
 
-        self['tests'] = client
+        for client_no in range(count):
+            client_id = client_no + 1 if client_no else ''
+            client = MaxClient('http://tests.local{}'.format(client_id), debug=False)
+            client.metadata = {'hashtag': 'testing{}'.format(client_id), 'language': 'ca'}
+            client.setActor(RESTRICTED_USER)
+            client.setToken(RESTRICTED_TOKEN)
+            self['tests{}'.format(client_id)] = client
 
     def get_all(self):
         return self.items()
@@ -63,11 +65,11 @@ class MockRunner(object):
     rabbitmq_server = ''
     workers_ready = None
 
-    def __init__(self, consumer_name, ini_file):
+    def __init__(self, consumer_name, ini_file, count=1):
         self.debug = consumer_name
         self.config = ConfigParser.ConfigParser()
         self.config.read('{}/{}'.format(TESTS_PATH, 'maxbunny.ini'))
-        self.clients = TestClientsMocker()
+        self.clients = TestClientsMocker(count=count)
 
 
 class MaxBunnyTestCase(unittest.TestCase):
