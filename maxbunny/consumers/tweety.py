@@ -24,13 +24,25 @@ class TweetyConsumer(BunnyConsumer):
     def configure(self, runner):
         pass
 
+    def purge_cache(self):
+        self._contexts = {}
+        self._users = {}
+
     @property
     def contexts(self):
-        return self.get_twitter_enabled_contexts()
+        if not self._contexts:
+            for server_id, client in self.clients.get_all():
+                resp = client.contexts.get(qs={'twitter_enabled': True, 'limit': 0})
+                self._contexts[server_id] = resp
+        return self._contexts
 
     @property
     def users(self):
-        return self.get_twitter_enabled_users()
+        if not self._users:
+            for server_id, client in self.clients.get_all():
+                resp = client.people.get(qs={'twitter_enabled': True, 'limit': 0})
+                self._users[server_id] = resp
+        return self._users
 
     @property
     def global_hashtags(self):
@@ -42,6 +54,7 @@ class TweetyConsumer(BunnyConsumer):
     def process(self, rabbitpy_message):
         """
         """
+        self.purge_cache()
         message = RabbitMessage.unpack(rabbitpy_message.json())
         twitter_message = message.get('data', {})
 
@@ -74,7 +87,7 @@ class TweetyConsumer(BunnyConsumer):
                 if context_count > 1:
                     self.logger.warning(MULTIPLE_CONTEXTS_MATCH_SAME_MAX.format(maxserver=maxserver, **twitter_message))
 
-            self.post_message_to_max_as_context(contexts_assigned, twitter_message)
+            self.post_messages_to_max_as_context(contexts_assigned, twitter_message)
 
         # We have a tweet from a tracked hashtag
         else:
@@ -143,21 +156,7 @@ class TweetyConsumer(BunnyConsumer):
                 raise BunnyMessageCancel(return_message)
 
             username = self.get_username_from_twitter_username(maxserver, author)
-            self.post_message_to_max(context_assigned, username, twitter_message)
-
-    def get_twitter_enabled_contexts(self):
-        contexts = {}
-        for server_id, client in self.clients.get_all():
-            resp = client.contexts.get(qs={'twitter_enabled': True, 'limit': 0})
-            contexts[server_id] = resp
-        return contexts
-
-    def get_twitter_enabled_users(self):
-        users = {}
-        for server_id, client in self.clients.get_all():
-            resp = client.people.get(qs={'twitter_enabled': True, 'limit': 0})
-            users[server_id] = resp
-        return users
+            self.post_messages_to_max_as_user(context_assigned, username, twitter_message)
 
     def get_followed_users_by_maxserver_name(self, contexts):
         followed_users = {}
@@ -204,22 +203,22 @@ class TweetyConsumer(BunnyConsumer):
             if user.get('twitterUsername') == twitter_username:
                 return user.get('username')
 
-    def post_message_to_max_as_context(self, context_assigned, message):
+    def post_messages_to_max_as_context(self, contexts_assigned, message):
         """ Post message to the context of each MAX (ideally only one context in
             one MAX)
         """
-        for context in context_assigned:
+        for context in contexts_assigned:
             endpoint = self.clients[context.get('maxserver')].contexts[context.get('url')].activities
             endpoint.post(object_content=message.get('message'), generator=GENERATOR_ID)
             self.logger.info(u"Successfully posted tweet {} from {} as context {}".format(message.get('stid'), message.get('author'), context.get('url')))
 
         return
 
-    def post_message_to_max(self, context_assigned, username, message):
+    def post_messages_to_max_as_user(self, contexts_assigned, username, message):
         """ Post message to the context of each MAX (ideally only one context in
             one MAX)
         """
-        for context in context_assigned:
+        for context in contexts_assigned:
             endpoint = self.clients[context.get('maxserver')].people[username].activities
             endpoint.post(object_content=message.get('message'), contexts=[{'url': context.get('url'), 'objectType': 'context'}], generator=GENERATOR_ID)
             self.logger.info(u"Successfully posted tweet {} from {} to context {}".format(message.get('stid'), message.get('author'), context.get('url')))
