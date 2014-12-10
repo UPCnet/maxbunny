@@ -1,56 +1,16 @@
 # -*- coding: utf-8 -*-
 from maxbunny.consumer import BunnyMessageCancel
+from maxbunny.consumers.tweety import TWITTER_USER_NOT_LINKED_TO_MAX_USER
+from maxbunny.consumers.tweety import NO_SECONDARY_HASHTAGS_FOUND
 from maxbunny.tests import MockRunner
 from maxbunny.tests import MaxBunnyTestCase
+from maxbunny.tests.mock_http import http_mock_info
+from maxbunny.tests.mock_http import http_mock_contexts
+from maxbunny.tests.mock_http import http_mock_users
+from maxbunny.tests.mock_http import http_mock_post_context_activity
+from maxbunny.tests.mock_http import http_mock_post_user_activity
 
 import httpretty
-import json
-import re
-
-
-def http_mock_info():
-    httpretty.register_uri(
-        httpretty.GET, "http://tests.local/info",
-        body='{"max.oauth_server": "http://oauth.local"}',
-        status=200,
-        content_type="application/json"
-    )
-
-
-def http_mock_contexts(contexts):
-    httpretty.register_uri(
-        httpretty.GET, "http://tests.local/contexts?limit=0&twitter_enabled=True",
-        body=json.dumps(contexts),
-        status=200,
-        content_type="application/json"
-    )
-
-
-def http_mock_users(users):
-    httpretty.register_uri(
-        httpretty.GET, "http://tests.local/people?limit=0&twitter_enabled=True",
-        body=json.dumps(users),
-        status=200,
-        content_type="application/json"
-    )
-
-
-def http_mock_post_context_activity():
-    httpretty.register_uri(
-        httpretty.POST, re.compile("http://tests.local/contexts/\w+/activities"),
-        body=json.dumps({}),
-        status=200,
-        content_type="application/json"
-    )
-
-
-def http_mock_post_user_activity():
-    httpretty.register_uri(
-        httpretty.POST, re.compile("http://tests.local/people/\w+/activities"),
-        body=json.dumps({}),
-        status=201,
-        content_type="application/json"
-    )
 
 
 class TweetyTests(MaxBunnyTestCase):
@@ -60,11 +20,14 @@ class TweetyTests(MaxBunnyTestCase):
     def tearDown(self):
         pass
 
+    @httpretty.activate
     def test_invalid_message(self):
         """
         """
         from maxbunny.consumers.tweety import __consumer__
         from maxbunny.tests.mockers import BAD_MESSAGE as message
+
+        http_mock_info()
 
         runner = MockRunner('tweety', 'maxbunny.ini')
         consumer = __consumer__(runner)
@@ -72,8 +35,19 @@ class TweetyTests(MaxBunnyTestCase):
         with self.assertRaises(BunnyMessageCancel):
             consumer.process(message)
 
+        self.assertEqual(len(consumer.logger.infos), 0)
+        self.assertEqual(len(consumer.logger.warnings), 0)
+
     @httpretty.activate
     def test_tweet_from_maxuser_to_context_max_empty(self):
+        """
+            Given there are no contexts linked with twitter_user
+            And there are no users linked with twitter_user
+            When a tweet from twitter_user is received without hashtags
+            Then the tweet is not posted anywhere
+            And the message is dropped with message TWITTER_USER_NOT_LINKED_TO_MAX_USER
+
+        """
         from maxbunny.consumers.tweety import __consumer__
         from maxbunny.tests.mockers import TWEETY_MESSAGE_FROM_CONTEXT as message
         from maxbunny.tests.mockers import NO_CONTEXTS as contexts
@@ -88,23 +62,30 @@ class TweetyTests(MaxBunnyTestCase):
 
         self.assertRaisesWithMessage(
             BunnyMessageCancel,
-            "Discarding tweet 0 from twitter_user : There's no MAX user with that twitter username.",
+            TWITTER_USER_NOT_LINKED_TO_MAX_USER.format(**message['d']),
             consumer.process,
             message
         )
 
-    @httpretty.activate
-    def test_tweet_from_maxuser_to_context_no_contexts(self):
-        """
-          Tweet from a followed twitter user (without hashtags), that
-          won't go anywhere because  we didn't find the context it's related to.
+        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.warnings), 0)
 
-          This scenario is matched as if it was a hashtag tweet, with missing second hashtag
+        self.assertTrue(consumer.logger.infos[0].startswith('Processing tweet'))
+
+    @httpretty.activate
+    def test_tweet_from_context_no_contexts(self):
+        """
+            Given there are no contexts linked with twitter_user
+            And there is a user linked with twitter_user_context
+            When a tweet from twitter_user_context is received without secondary hashtags
+            Then the tweet is not posted anywhere
+            And the tweet is matched as if it was a invalid hastag tweet
+            And the message is dropped with message NO_SECONDARY_HASHTAGS_FOUND
         """
         from maxbunny.consumers.tweety import __consumer__
         from maxbunny.tests.mockers import TWEETY_MESSAGE_FROM_CONTEXT as message
         from maxbunny.tests.mockers import NO_CONTEXTS as contexts
-        from maxbunny.tests.mockers import SINGLE_USER as users
+        from maxbunny.tests.mockers import MIXED_USERS as users
 
         http_mock_info()
         http_mock_contexts(contexts)
@@ -115,16 +96,24 @@ class TweetyTests(MaxBunnyTestCase):
 
         self.assertRaisesWithMessage(
             BunnyMessageCancel,
-            "tweet 0 from twitter_user has only one (global) hashtag.",
+            NO_SECONDARY_HASHTAGS_FOUND.format(**message['d']),
             consumer.process,
             message
         )
 
+        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.warnings), 0)
+
+        self.assertTrue(consumer.logger.infos[0].startswith('Processing tweet'))
+
     @httpretty.activate
     def test_tweet_from_context_succeed(self):
         """
-          Tweet from a followed twitter user (without hashtags), that
-          will be written to his related context.
+            Given there is a context linked with twitter_context_user
+            And there are no max users linked with twitter_context_user
+            When a tweet from twitter_user is received
+            Then the tweet is posted to the linked context
+            And the processing is logged as succesfull
         """
         from maxbunny.consumers.tweety import __consumer__
         from maxbunny.tests.mockers import TWEETY_MESSAGE_FROM_CONTEXT as message
@@ -149,8 +138,11 @@ class TweetyTests(MaxBunnyTestCase):
     @httpretty.activate
     def test_tweet_from_maxuser_to_context_succeed(self):
         """
-          Tweet from a with a context hashtag, that will be written to his related context
-          with author that is linked with its twitter username
+            Given there is a max user linked with twitter_user
+            And a context linked to the #thehashtag
+            When a tweet from twitter_user is received with #thehashtag
+            Then the tweet is posted to the linked context
+            And the processing is logged as succesfull
         """
         from maxbunny.consumers.tweety import __consumer__
         from maxbunny.tests.mockers import TWEETY_MESSAGE_FROM_USER as message

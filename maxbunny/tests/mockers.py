@@ -13,7 +13,7 @@ BAD_MESSAGE = RabbitpyMockMessage({})
 TWEETY_MESSAGE_FROM_CONTEXT = RabbitpyMockMessage({
     "a": "a", "o": "t", "s": "t", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
     "d": {
-        "stid": 000000000000000000,
+        "stid": 0,
         "message": "I Am a tweet from Twitter",
         "author": "twitter_context_user"
     }})
@@ -21,7 +21,7 @@ TWEETY_MESSAGE_FROM_CONTEXT = RabbitpyMockMessage({
 TWEETY_MESSAGE_FROM_USER = RabbitpyMockMessage({
     "a": "a", "o": "t", "s": "t", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
     "d": {
-        "stid": 000000000000000000,
+        "stid": 0,
         "message": "I Am a tweet from Twitter to #testing #thehashtag",
         "author": "twitter_user"
     }})
@@ -44,5 +44,16 @@ SINGLE_USER = [
     {
         'username': 'max_user',
         'twitterUsername': 'twitter_user',
+    }
+]
+
+MIXED_USERS = [
+    {
+        'username': 'max_user',
+        'twitterUsername': 'twitter_user',
+    },
+    {
+        'username': 'max_user_context',
+        'twitterUsername': 'twitter_context_user',
     }
 ]

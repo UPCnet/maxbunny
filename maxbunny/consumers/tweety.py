@@ -6,6 +6,9 @@ from maxcarrot.message import RabbitMessage
 
 GENERATOR_ID = 'Twitter'
 
+TWITTER_USER_NOT_LINKED_TO_MAX_USER = u"Discarding tweet {stid} from {author} : There's no MAX user with that twitter username."
+NO_SECONDARY_HASHTAGS_FOUND = u"tweet {stid} from {author} has only one (global) hashtag."
+
 
 class TweetyConsumer(BunnyConsumer):
     """
@@ -68,7 +71,7 @@ class TweetyConsumer(BunnyConsumer):
             # Check if twitter_username is registered for a valid MAX username
             # if not, discard it
             if author not in self.get_registered_twitter_usernames_by_name(self.users):
-                return_message = u"Discarding tweet {stid} from {author} : There's no MAX user with that twitter username.".format(**twitter_message)
+                return_message = TWITTER_USER_NOT_LINKED_TO_MAX_USER.format(**twitter_message)
                 raise BunnyMessageCancel(return_message, notify=False)
 
             # Parse text and determine its corresponding MAX server
@@ -88,7 +91,7 @@ class TweetyConsumer(BunnyConsumer):
             # until further notice. In the future, it will be posted as a
             # 'timeline' message from the sender.
             if len(message_hastags) == 0:
-                return_message = u"tweet {stid} from {author} has only one (global) hashtag.".format(**twitter_message)
+                return_message = NO_SECONDARY_HASHTAGS_FOUND.format(**twitter_message)
                 raise BunnyMessageCancel(return_message)
 
             registered_hashtags = self.get_all_contexts_by_hashtag(self.contexts)

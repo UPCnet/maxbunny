@@ -51,12 +51,12 @@ class TestClientsMocker(dict):
         return mapping
 
 
-class RabbitpyMockMessage():
+class RabbitpyMockMessage(dict):
     def __init__(self, message):
-        self.message = message
+        self.update(message)
 
     def json(self):
-        return self.message
+        return dict(self)
 
 
 class MockRunner(object):
