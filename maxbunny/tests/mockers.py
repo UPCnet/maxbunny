@@ -2,6 +2,8 @@ from maxbunny.tests import RabbitpyMockMessage
 
 BAD_MESSAGE = RabbitpyMockMessage({})
 
+# A message expected to be sent by @twitter_context_user, to be posted
+# on a context with twitterUsername == twitter_context_user
 TWEETY_MESSAGE_FROM_CONTEXT = RabbitpyMockMessage({
     "a": "a", "o": "t", "s": "t", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
     "d": {
@@ -10,6 +12,9 @@ TWEETY_MESSAGE_FROM_CONTEXT = RabbitpyMockMessage({
         "author": "twitter_context_user"
     }})
 
+# A message expected to be sent by @twitter_user,
+# matching a user with twitterUsername == twitter_user, to be posted
+# on a context with twitterHashtag == #thehastag and max with primary hashtag #testing
 TWEETY_MESSAGE_FROM_USER = RabbitpyMockMessage({
     "a": "a", "o": "t", "s": "t", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
     "d": {
@@ -18,6 +23,7 @@ TWEETY_MESSAGE_FROM_USER = RabbitpyMockMessage({
         "author": "twitter_user"
     }})
 
+# A message from a debug hashtag not expected to be posted anywhere
 TWEETY_MESSAGE_FROM_USER_DEBUG = RabbitpyMockMessage({
     "a": "a", "o": "t", "s": "t", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
     "d": {
@@ -26,6 +32,10 @@ TWEETY_MESSAGE_FROM_USER_DEBUG = RabbitpyMockMessage({
         "author": "twitter_user"
     }})
 
+# A message expected to be sent by @twitter_user,
+# matching a user with twitterUsername == twitter_user, to be posted
+# on a context with twitterHashtag == #thehastag and max with primary hashtag #testing
+# and another context with twitterHashtag == #theotherhastag on the same max
 TWEETY_MESSAGE_FROM_USER_TWO_SECONDARY_HASHTAGS = RabbitpyMockMessage({
     "a": "a", "o": "t", "s": "t", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
     "d": {
@@ -34,6 +44,10 @@ TWEETY_MESSAGE_FROM_USER_TWO_SECONDARY_HASHTAGS = RabbitpyMockMessage({
         "author": "twitter_user"
     }})
 
+# A message expected to be sent by @twitter_user,
+# matching a user with twitterUsername == twitter_user, to be posted
+# on a context with twitterHashtag == #thehastag and max with primary hashtag #testing
+# Discarding the second pair of hashtags because there are of another max server
 TWEETY_MESSAGE_FROM_USER_TWO_GLOBAL = RabbitpyMockMessage({
     "a": "a", "o": "t", "s": "t", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
     "d": {
@@ -42,9 +56,13 @@ TWEETY_MESSAGE_FROM_USER_TWO_GLOBAL = RabbitpyMockMessage({
         "author": "twitter_user"
     }})
 
+
+# Mocks to test behaviour on empty max
 NO_CONTEXTS = [{}]
 NO_USERS = [{}]
 
+
+# A single context linked both to hashtag and a twitter @user
 SINGLE_CONTEXT = [
     {
         'twitterHashtag': 'thehashtag',
@@ -87,6 +105,7 @@ CONTEXTS_SHARED_MAX_2 = [
         'twitterUsername': 'twitter_context_user'
     }]
 
+# Two different contexts with different hashtags
 TWO_HASHTAG_CONTEXTS = [
     {
         'twitterHashtag': 'thehashtag',
@@ -98,6 +117,8 @@ TWO_HASHTAG_CONTEXTS = [
     }
 ]
 
+# Two different contexts, targeting hashtag messages on the first one
+# and followed users on the second one
 TWO_MIXED_CONTEXTS = [
     {
         'twitterHashtag': 'thehashtag',
@@ -109,6 +130,8 @@ TWO_MIXED_CONTEXTS = [
         'url': 'http://tests.local/singlecontext2',
     }
 ]
+
+# A single user linked to a @twitter username
 SINGLE_USER = [
     {
         'username': 'max_user',
@@ -116,6 +139,7 @@ SINGLE_USER = [
     }
 ]
 
+# A pair of users linked to different twitter usernames
 MIXED_USERS = [
     {
         'username': 'max_user',
