@@ -76,7 +76,6 @@ class MaxBunnyTestCase(unittest.TestCase):
     def assertRaisesWithMessage(self, exc_type, msg, func, *args, **kwargs):
         try:
             func(*args, **kwargs)
-            self.assertFail()
         except Exception as inst:
             self.assertEqual(exc_type, inst.__class__)
             self.assertEqual(inst.message, msg)

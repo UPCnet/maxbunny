@@ -18,6 +18,14 @@ TWEETY_MESSAGE_FROM_USER = RabbitpyMockMessage({
         "author": "twitter_user"
     }})
 
+TWEETY_MESSAGE_FROM_USER_DEBUG = RabbitpyMockMessage({
+    "a": "a", "o": "t", "s": "t", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
+    "d": {
+        "stid": 0,
+        "message": "I Am a tweet from Twitter going to #debug",
+        "author": "twitter_user"
+    }})
+
 TWEETY_MESSAGE_FROM_USER_TWO_SECONDARY_HASHTAGS = RabbitpyMockMessage({
     "a": "a", "o": "t", "s": "t", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
     "d": {

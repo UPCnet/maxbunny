@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from maxbunny.consumer import BunnyMessageCancel
 from maxbunny.consumers.tweety import TWITTER_USER_NOT_LINKED_TO_MAX_USER
+from maxbunny.consumers.tweety import NO_GLOBAL_HASHTAGS_FOUND
 from maxbunny.consumers.tweety import NO_SECONDARY_HASHTAGS_FOUND
 from maxbunny.consumers.tweety import NO_CONTEXT_FOUND_FOR_HASHTAGS
 from maxbunny.consumers.tweety import MULTIPLE_CONTEXTS_MATCH_SAME_MAX
@@ -50,9 +51,9 @@ class TweetyTests(MaxBunnyTestCase):
     @httpretty.activate
     def test_tweet_from_followed_user_max_empty(self):
         """
-            Given there are no contexts linked with twitter_user
-            And there are no users followed with twitter_user
-            When a tweet from twitter_user is received without hashtags
+            Given there are no contexts linked with @twitter_user
+            And there are no users followed with @twitter_user
+            When a tweet from @twitter_user is received without hashtags
             Then the tweet is not posted anywhere
             And the message is dropped with message TWITTER_USER_NOT_LINKED_TO_MAX_USER
 
@@ -84,9 +85,9 @@ class TweetyTests(MaxBunnyTestCase):
     @httpretty.activate
     def test_hashtag_tweet_user_max_empty(self):
         """
-            Given there are no contexts linked with twitter_user
-            And there are no users followed with twitter_user
-            When a hashtag tweet from twitter_user is received
+            Given there are no contexts linked with @twitter_user
+            And there are no users followed with @twitter_user
+            When a hashtag tweet from @twitter_user is received
             Then the tweet is not posted anywhere
             And the message is dropped with message TWITTER_USER_NOT_LINKED_TO_MAX_USER
 
@@ -118,9 +119,9 @@ class TweetyTests(MaxBunnyTestCase):
     @httpretty.activate
     def test_hashtag_tweet_no_context_found(self):
         """
-            Given there are no contexts linked with twitter_user
-            And there is a user liked to twitter_user
-            When a hashtag tweet from twitter_user is received
+            Given there are no contexts linked with @twitter_user
+            And there is a user liked to @twitter_user
+            When a hashtag tweet from @twitter_user is received
             Then the tweet is not posted anywhere
             And the message is dropped with message NO_CONTEXT_FOUND_FOR_HASHTAGS
         """
@@ -151,9 +152,9 @@ class TweetyTests(MaxBunnyTestCase):
     @httpretty.activate
     def test_hashtag_tweet_from_folowed_user_no_contexts(self):
         """
-            Given there are no contexts linked with twitter_user
-            And there is a user linked with twitter_user_context
-            When a tweet from twitter_user_context is received without secondary hashtags
+            Given there are no contexts linked with @twitter_user
+            And there is a user linked with @twitter_user_context
+            When a tweet from @twitter_user_context is received without secondary hashtags
             Then the tweet is not posted anywhere
             And the tweet is matched as if it was a invalid hastag tweet
             And the message is dropped with message NO_SECONDARY_HASHTAGS_FOUND
@@ -182,6 +183,35 @@ class TweetyTests(MaxBunnyTestCase):
 
         self.assertTrue(consumer.logger.infos[0].startswith('Processing tweet'))
 
+    @httpretty.activate
+    def test_tweet_with_debug_hashtag(self):
+        """
+            Given there is a debug hashtag that allows a tweet to be processed
+            And there is a max user linked with @twitter_user
+            And there is no match between the tweet's other hashtags and contexts
+            When a hashtag tweet from @twitter_user is received with a debug hashtag
+            Then the tweet is not posted anywhere
+            And a message is logged
+        """
+        from maxbunny.consumers.tweety import __consumer__
+        from maxbunny.tests.mockers import TWEETY_MESSAGE_FROM_USER_DEBUG as message
+        from maxbunny.tests.mockers import NO_CONTEXTS as contexts
+        from maxbunny.tests.mockers import SINGLE_USER as users
+
+        http_mock_info()
+        http_mock_contexts(contexts)
+        http_mock_users(users)
+
+        runner = MockRunner('tweety', 'maxbunny.ini')
+        consumer = __consumer__(runner)
+
+        self.assertRaisesWithMessage(
+            BunnyMessageCancel,
+            NO_GLOBAL_HASHTAGS_FOUND.format(hashtags=['debug'], **message['d']),
+            consumer.process,
+            message
+        )
+
     # ===================================================
     # TESTS FOR SUCCESSFULL SCENARIOS, SINGLE DESTINATION
     # ===================================================
@@ -191,7 +221,7 @@ class TweetyTests(MaxBunnyTestCase):
         """
             Given there is a context linked with twitter_context_user
             And there are no max users linked with twitter_context_user
-            When a tweet from twitter_user is received
+            When a tweet from @twitter_user is received
             Then the tweet is posted to the linked context
             And the processing is logged as succesfull
         """
@@ -218,9 +248,9 @@ class TweetyTests(MaxBunnyTestCase):
     @httpretty.activate
     def test_hashtag_tweet_from_maxuser_to_context_succeed(self):
         """
-            Given there is a max user linked with twitter_user
+            Given there is a max user linked with @twitter_user
             And a context linked to the #thehashtag
-            When a tweet from twitter_user is received with #thehashtag
+            When a tweet from @twitter_user is received with #thehashtag
             Then the tweet is posted to the linked context
             And the processing is logged as succesfull
         """
@@ -247,10 +277,10 @@ class TweetyTests(MaxBunnyTestCase):
     @httpretty.activate
     def test_tweet_from_followed_mixed_with_hashtag_user_succeed(self):
         """
-            Given there is a context linked with twitter_user
+            Given there is a context linked with @twitter_user
             And there is another context linked to #thehastag
-            And there is a max user linked with twitter_user
-            When a tweet from twitter_user is received with #thehashtag
+            And there is a max user linked with @twitter_user
+            When a tweet from @twitter_user is received with #thehashtag
             Then the followed user scenario takes precedence
             And the tweet is posted only the the followed user context
             And the processing is logged as succesfull
@@ -315,9 +345,9 @@ class TweetyTests(MaxBunnyTestCase):
     @httpretty.activate
     def test_hashtag_tweet_to_multiple_contexts_same_hashtag_succeed(self):
         """
-            Given there is a max user linked with twitter_user
+            Given there is a max user linked with @twitter_user
             And multiple contexts linked to the #thehashtag
-            When a tweet from twitter_user is received with #thehashtag
+            When a tweet from @twitter_user is received with #thehashtag
             Then the tweet is posted to all the linked contexts
             And the processing is logged as succesfull
         """
@@ -347,10 +377,10 @@ class TweetyTests(MaxBunnyTestCase):
     @httpretty.activate
     def test_hashtag_tweet_to_multiple_contexts_different_hashtags_succeed(self):
         """
-            Given there is a max user linked with twitter_user
+            Given there is a max user linked with @twitter_user
             And a context linked to #thehashtag
             And a seconds context linked to #theotherhashtag
-            When a tweet from twitter_user is received with both thehashtag and #theotherhashtag
+            When a tweet from @twitter_user is received with both thehashtag and #theotherhashtag
             Then the tweet is posted to all the linked contexts
             And the processing is logged as succesfull
         """
@@ -427,11 +457,11 @@ class TweetyTests(MaxBunnyTestCase):
     def test_hashtag_tweet_to_multiple_contexts_same_hashtag_in_different_max_succeed(self):
         """
             Given there is more than one context linked with #thehashtag
-            And there are users linked with twitter_user
+            And there are users linked with @twitter_user
             And those contexts and users are located in different max instances
             And those max instances has different global hashtags
 
-            When a tweet from twitter_user is received with #thehashtag
+            When a tweet from @twitter_user is received with #thehashtag
             ???
             Then the tweet is posted to all linked contexts
             And the processing is logged as succesfull

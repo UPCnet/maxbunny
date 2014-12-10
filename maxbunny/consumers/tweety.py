@@ -7,6 +7,7 @@ from maxcarrot.message import RabbitMessage
 GENERATOR_ID = 'Twitter'
 
 TWITTER_USER_NOT_LINKED_TO_MAX_USER = u'Discarding tweet {stid} from {author} : There\'s no MAX user with that twitter username.'
+NO_GLOBAL_HASHTAGS_FOUND = u'Discarding tweet {stid} from {author} with unknown (probably debug) global hashtag found in [{hashtags}]'
 NO_SECONDARY_HASHTAGS_FOUND = u'tweet {stid} from {author} has only one (global) hashtag.'
 NO_CONTEXT_FOUND_FOR_HASHTAGS = u'Discarding tweet {stid} from {author} with hashtags {hashtags} : There\'s no registered context with the supplied hashtags.'
 MULTIPLE_CONTEXTS_MATCH_SAME_MAX = u'tweet {stid} from {author} eligible context found in more than one context in the max server "{maxserver}".'
@@ -123,7 +124,7 @@ class TweetyConsumer(BunnyConsumer):
             # so log it and don't try to add it
 
             if len(found_global_hashtags) == 0:
-                return_message = u"Discarding tweet {} from {} with unknown (probably debug) global hashtag found in [{}]".format(twitter_message.get('stid'), twitter_message.get('author'), ', '.join(found_context_hashtags))
+                return_message = NO_GLOBAL_HASHTAGS_FOUND.format(hashtags=found_context_hashtags, **twitter_message)
                 raise BunnyMessageCancel(return_message)
 
             # Alert of message not being published to multuple max servers
