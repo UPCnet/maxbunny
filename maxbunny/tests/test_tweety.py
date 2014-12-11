@@ -380,7 +380,7 @@ class TweetyTests(MaxBunnyTestCase):
             Given there is a max user linked with @twitter_user
             And a context linked to #thehashtag
             And a seconds context linked to #theotherhashtag
-            When a tweet from @twitter_user is received with both thehashtag and #theotherhashtag
+            When a tweet from @twitter_user is received with both #thehashtag and #theotherhashtag
             Then the tweet is posted to all the linked contexts
             And the processing is logged as succesfull
         """
@@ -462,8 +462,7 @@ class TweetyTests(MaxBunnyTestCase):
             And those max instances has different global hashtags
 
             When a tweet from @twitter_user is received with #thehashtag
-            ???
-            Then the tweet is posted to all linked contexts
+            Then the tweet is posted only to the first hastag related context found
             And the processing is logged as succesfull
         """
         from maxbunny.consumers.tweety import __consumer__
