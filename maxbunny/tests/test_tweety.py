@@ -39,7 +39,7 @@ class TweetyTests(MaxBunnyTestCase):
 
         http_mock_info()
 
-        runner = MockRunner('tweety', 'maxbunny.ini')
+        runner = MockRunner('tweety', 'maxbunny.ini', 'instances.ini')
         consumer = __consumer__(runner)
 
         with self.assertRaises(BunnyMessageCancel):
@@ -67,7 +67,7 @@ class TweetyTests(MaxBunnyTestCase):
         http_mock_contexts(contexts)
         http_mock_users(users)
 
-        runner = MockRunner('tweety', 'maxbunny.ini')
+        runner = MockRunner('tweety', 'maxbunny.ini', 'instances.ini')
         consumer = __consumer__(runner)
 
         self.assertRaisesWithMessage(
@@ -101,7 +101,7 @@ class TweetyTests(MaxBunnyTestCase):
         http_mock_contexts(contexts)
         http_mock_users(users)
 
-        runner = MockRunner('tweety', 'maxbunny.ini')
+        runner = MockRunner('tweety', 'maxbunny.ini', 'instances.ini')
         consumer = __consumer__(runner)
 
         self.assertRaisesWithMessage(
@@ -134,7 +134,7 @@ class TweetyTests(MaxBunnyTestCase):
         http_mock_contexts(contexts)
         http_mock_users(users)
 
-        runner = MockRunner('tweety', 'maxbunny.ini')
+        runner = MockRunner('tweety', 'maxbunny.ini', 'instances.ini')
         consumer = __consumer__(runner)
 
         self.assertRaisesWithMessage(
@@ -168,7 +168,7 @@ class TweetyTests(MaxBunnyTestCase):
         http_mock_contexts(contexts)
         http_mock_users(users)
 
-        runner = MockRunner('tweety', 'maxbunny.ini')
+        runner = MockRunner('tweety', 'maxbunny.ini', 'instances.ini')
         consumer = __consumer__(runner)
 
         self.assertRaisesWithMessage(
@@ -202,7 +202,7 @@ class TweetyTests(MaxBunnyTestCase):
         http_mock_contexts(contexts)
         http_mock_users(users)
 
-        runner = MockRunner('tweety', 'maxbunny.ini')
+        runner = MockRunner('tweety', 'maxbunny.ini', 'instances.ini')
         consumer = __consumer__(runner)
 
         self.assertRaisesWithMessage(
@@ -235,7 +235,7 @@ class TweetyTests(MaxBunnyTestCase):
         http_mock_users(users)
         http_mock_post_context_activity()
 
-        runner = MockRunner('tweety', 'maxbunny.ini')
+        runner = MockRunner('tweety', 'maxbunny.ini', 'instances.ini')
         consumer = __consumer__(runner)
         consumer.process(message)
 
@@ -264,7 +264,7 @@ class TweetyTests(MaxBunnyTestCase):
         http_mock_users(users)
         http_mock_post_user_activity()
 
-        runner = MockRunner('tweety', 'maxbunny.ini')
+        runner = MockRunner('tweety', 'maxbunny.ini', 'instances.ini')
         consumer = __consumer__(runner)
         consumer.process(message)
 
@@ -295,7 +295,7 @@ class TweetyTests(MaxBunnyTestCase):
         http_mock_users(users)
         http_mock_post_context_activity()
 
-        runner = MockRunner('tweety', 'maxbunny.ini')
+        runner = MockRunner('tweety', 'maxbunny.ini', 'instances.ini')
         consumer = __consumer__(runner)
         consumer.process(message)
 
@@ -329,7 +329,7 @@ class TweetyTests(MaxBunnyTestCase):
         http_mock_users(users)
         http_mock_post_context_activity()
 
-        runner = MockRunner('tweety', 'maxbunny.ini')
+        runner = MockRunner('tweety', 'maxbunny.ini', 'instances.ini')
         consumer = __consumer__(runner)
         consumer.process(message)
 
@@ -361,7 +361,7 @@ class TweetyTests(MaxBunnyTestCase):
         http_mock_users(users)
         http_mock_post_user_activity()
 
-        runner = MockRunner('tweety', 'maxbunny.ini')
+        runner = MockRunner('tweety', 'maxbunny.ini', 'instances.ini')
         consumer = __consumer__(runner)
         consumer.process(message)
 
@@ -394,7 +394,7 @@ class TweetyTests(MaxBunnyTestCase):
         http_mock_users(users)
         http_mock_post_user_activity()
 
-        runner = MockRunner('tweety', 'maxbunny.ini')
+        runner = MockRunner('tweety', 'maxbunny.ini', 'instances.ini')
         consumer = __consumer__(runner)
         consumer.process(message)
 
@@ -437,7 +437,7 @@ class TweetyTests(MaxBunnyTestCase):
         http_mock_contexts(contexts2, uri='tests.local2')
         http_mock_post_context_activity(uri='tests.local2')
 
-        runner = MockRunner('tweety', 'maxbunny.ini', count=2)
+        runner = MockRunner('tweety', 'maxbunny.ini', 'instances2.ini')
         consumer = __consumer__(runner)
         consumer.process(message)
 
@@ -481,7 +481,7 @@ class TweetyTests(MaxBunnyTestCase):
         http_mock_contexts(contexts2, uri='tests.local2')
         http_mock_post_user_activity(uri='tests.local2')
 
-        runner = MockRunner('tweety', 'maxbunny.ini', count=2)
+        runner = MockRunner('tweety', 'maxbunny.ini', 'instances2.ini')
         consumer = __consumer__(runner)
         consumer.process(message)
 
