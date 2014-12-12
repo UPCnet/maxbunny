@@ -19,7 +19,7 @@ class ConversationsConsumer(BunnyConsumer):
     def process(self, rabbitpy_message):
         """
         """
-        message = RabbitMessage.unpack(rabbitpy_message.body)
+        message = RabbitMessage.unpack(rabbitpy_message.json())
 
         match = re.search(r'(\w+).messages', rabbitpy_message.routing_key)
 
