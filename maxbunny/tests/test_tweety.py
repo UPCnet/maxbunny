@@ -10,18 +10,21 @@ from maxbunny.consumers.tweety import MULTIPLE_GLOBAL_HASHTAGS_FOUND
 
 from maxbunny.tests import MockRunner
 from maxbunny.tests import MaxBunnyTestCase
+from maxbunny.tests import get_storing_logger
 from maxbunny.tests.mock_http import http_mock_info
 from maxbunny.tests.mock_http import http_mock_contexts
 from maxbunny.tests.mock_http import http_mock_users
 from maxbunny.tests.mock_http import http_mock_post_context_activity
 from maxbunny.tests.mock_http import http_mock_post_user_activity
 
+from mock import patch
 import httpretty
 
 
 class TweetyTests(MaxBunnyTestCase):
     def setUp(self):
-        pass
+        self.log_patch = patch('maxbunny.consumer.BunnyConsumer.configure_logger', new=get_storing_logger)
+        self.log_patch.start()
 
     def tearDown(self):
         pass

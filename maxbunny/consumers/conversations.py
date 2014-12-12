@@ -37,11 +37,15 @@ class ConversationsConsumer(BunnyConsumer):
         if 'file' in message.data:
             message_object_type = 'file'
 
-        # Client will be None only if after determining the domain (or getting the default),
+        # If client is None it means that we could not load a client for the specified domain
+        # Then we have to assert if it's because the domain is missing, and we couldn't load the default
+        # Or the client for that domain is not defined
         # no client could be found matching that domain
         client = self.clients[domain]
-        if client is None:
-            raise BunnyMessageCancel('Unknown domain {}'.format(domain))
+        if client is None and domain is BUNNY_NO_DOMAIN:
+            raise BunnyMessageCancel('Missing domain, and default could not be loaded'.format(domain))
+        elif client is None and domain is not BUNNY_NO_DOMAIN:
+            raise BunnyMessageCancel('Unknown domain "{}"'.format(domain))
 
         username = message.get('user', {}).get('username', None)
         if username is None:

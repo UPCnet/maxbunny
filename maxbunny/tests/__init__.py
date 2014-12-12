@@ -4,18 +4,16 @@ import ConfigParser
 import os
 import sys
 import unittest
+import socket
+
+from pamqp import specification
 
 
 TESTS_PATH = os.path.dirname(sys.modules['maxbunny.tests'].__file__)
 
-# Patch consumer logger to store logs in a consumer var
-from maxbunny.consumer import BunnyConsumer
-
 
 def get_storing_logger(self):
     return MockLogger()
-
-BunnyConsumer.configure_logger = get_storing_logger
 
 
 class MockLogger(object):
@@ -28,6 +26,28 @@ class MockLogger(object):
 
     def warning(self, message):
         self.warnings.append(message)
+
+
+class MockConnection(object):
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def channel(self):
+        return Channel()
+
+
+class Channel(object):
+    pass
+
+    def _write_frames(self, *args, **kwargs):
+        pass
+
+    def _wait_for_confirmation(self, *args, **kwargs):
+        return specification.Basic.Ack()
+
+    def __getattr__(self, name):
+        return 1
 
 
 class MockRunner(object):
@@ -53,3 +73,11 @@ class MaxBunnyTestCase(unittest.TestCase):
         except Exception as inst:
             self.assertEqual(exc_type, inst.__class__)
             self.assertEqual(inst.message, msg)
+
+
+def is_rabbit_active():
+    try:
+        socket.socket().bind(('localhost', 5672))
+    except:
+        return True
+    return False

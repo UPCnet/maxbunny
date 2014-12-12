@@ -1,1 +1,0 @@
-BAD_MESSAGE = RabbitpyMockMessage({})

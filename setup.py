@@ -36,7 +36,7 @@ setup(name='maxbunny',
       install_requires=requires,
       tests_require=requires,
       extras_require={
-          'test': ['HTTPretty']
+          'test': ['HTTPretty', 'mock']
       },
       test_suite="maxbunny",
       entry_points="""\
