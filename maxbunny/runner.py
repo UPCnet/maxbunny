@@ -22,7 +22,7 @@ class BunnyRunner(object):
         self.load_config(config)
 
         self.rabbitmq_server = self.common.get('rabbitmq', 'server')
-        self.clients = MaxClientsWrapper(self.instances, self.config.get('main', 'default_domain'))
+        self.clients = MaxClientsWrapper(self.instances_config_file, self.config.get('main', 'default_domain'))
         failed = self.clients.load_instances()
         for maxserver, error_message in failed:
             logger.error('Error loading maxclient for [{}]: {}'.format(maxserver, error_message))
@@ -74,16 +74,13 @@ class BunnyRunner(object):
         """
         common_config_file = config.get('main', 'common')
         cloudapis_config_file = config.get('main', 'cloudapis')
-        instances_config_file = config.get('main', 'instances')
+        self.instances_config_file = config.get('main', 'instances')
 
         self.common = ConfigParser.ConfigParser()
         self.common.read(common_config_file)
 
         self.cloudapis = ConfigParser.ConfigParser()
         self.cloudapis.read(cloudapis_config_file)
-
-        self.instances = ConfigParser.ConfigParser()
-        self.instances.read(instances_config_file)
 
     def start(self):
         """

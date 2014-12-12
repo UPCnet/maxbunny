@@ -2,16 +2,21 @@
 from maxclient.wsgi import MaxClient
 from maxbunny import BUNNY_NO_DOMAIN
 
+import ConfigParser
+
 
 class MaxClientsWrapper(object):
     """
         Mimics a dict of maxclients, which tries to reload new-defined maxservers
         from disk config file if asked for a non-existant client
     """
-    def __init__(self, instances, default_domain):
-        self.instances = instances
-        self.maxclients = {}
+    def __init__(self, instances_config_file, default_domain, client_class=MaxClient, debug=False):
         self.default_domain = default_domain
+        self.instances = instances_config_file
+        self.debug = debug
+        self.MaxClient = client_class
+
+        self.load_instances()
 
     def get_all(self):
         for instance_id, client in self.maxclients.items():
@@ -28,22 +33,26 @@ class MaxClientsWrapper(object):
             Loads instances and parses all maxservers. For each maxserver
             a maxclient with key="maxserver domain" is stored on self.maxclients
         """
-        max_instances = [maxserver for maxserver in self.instances.sections()]
+        self.maxclients = {}
+        instances = ConfigParser.ConfigParser()
+        instances.read(self.instances)
+
+        max_instances = [maxserver for maxserver in instances.sections()]
         failed = []
 
         # Instantiate a maxclient for each maxserver
         # Catch exceptions related to the connection with the maxserver
         for maxserver in max_instances:
-            maxclient = MaxClient(url=self.instances.get(maxserver, 'server'))
+            maxclient = self.MaxClient(url=instances.get(maxserver, 'server'), debug=self.debug)
             try:
-                maxclient.setActor(self.instances.get(maxserver, 'restricted_user'))
-                maxclient.setToken(self.instances.get(maxserver, 'restricted_user_token'))
+                maxclient.setActor(instances.get(maxserver, 'restricted_user'))
+                maxclient.setToken(instances.get(maxserver, 'restricted_user_token'))
             except Exception as exc:
                 failed.append((maxserver, exc.message))
             else:
                 maxclient.metadata = {
-                    "hashtag": self.instances.get(maxserver, 'hashtag', ''),
-                    "language": self.instances.get(maxserver, 'language', 'ca')
+                    "hashtag": instances.get(maxserver, 'hashtag', ''),
+                    "language": instances.get(maxserver, 'language', 'ca')
                 }
                 self.maxclients[maxserver] = maxclient
 
