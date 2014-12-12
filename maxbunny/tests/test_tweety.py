@@ -426,12 +426,17 @@ class TweetyTests(MaxBunnyTestCase):
         from maxbunny.tests.mockers.tweety import CONTEXTS_SHARED_MAX_1 as contexts1
         from maxbunny.tests.mockers.tweety import CONTEXTS_SHARED_MAX_2 as contexts2
         from maxbunny.tests.mockers.tweety import SINGLE_USER as users
+        from maxbunny.tests.mockers.tweety import NO_USERS
+        from maxbunny.tests.mockers.tweety import NO_CONTEXTS
 
         http_mock_info()
 
         http_mock_users(users)
         http_mock_contexts(contexts1)
         http_mock_post_context_activity()
+
+        http_mock_users(NO_USERS, uri='tests.default')
+        http_mock_contexts(NO_CONTEXTS, uri='tests.default')
 
         http_mock_users(users, uri='tests.local2')
         http_mock_contexts(contexts2, uri='tests.local2')
@@ -470,12 +475,17 @@ class TweetyTests(MaxBunnyTestCase):
         from maxbunny.tests.mockers.tweety import CONTEXTS_SHARED_MAX_1 as contexts1
         from maxbunny.tests.mockers.tweety import CONTEXTS_SHARED_MAX_2 as contexts2
         from maxbunny.tests.mockers.tweety import SINGLE_USER as users
+        from maxbunny.tests.mockers.tweety import NO_USERS
+        from maxbunny.tests.mockers.tweety import NO_CONTEXTS
 
         http_mock_info()
 
         http_mock_users(users)
         http_mock_contexts(contexts1)
         http_mock_post_user_activity()
+
+        http_mock_users(NO_USERS, uri='tests.default')
+        http_mock_contexts(NO_CONTEXTS, uri='tests.default')
 
         http_mock_users(users, uri='tests.local2')
         http_mock_contexts(contexts2, uri='tests.local2')
