@@ -8,6 +8,7 @@ from StringIO import StringIO
 import base64
 import rabbitpy
 import json
+import pkg_resources
 
 
 class ConversationsConsumer(BunnyConsumer):
@@ -92,7 +93,7 @@ class ConversationsConsumer(BunnyConsumer):
             "action": "ack",
             "object": "message",
             "source": "maxbunny",
-            "version": "4.0.3",
+            "version": pkg_resources.require('maxbunny')[0].version,
         })
 
         # include message activity id

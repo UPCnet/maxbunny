@@ -10,10 +10,26 @@ from pamqp import specification
 
 
 TESTS_PATH = os.path.dirname(sys.modules['maxbunny.tests'].__file__)
+RABBIT_URL = "amqp://guest:guest@localhost:5672"
+TEST_VHOST_URL = '{}/tests'.format(RABBIT_URL)
 
 
 def get_storing_logger(self):
     return MockLogger()
+
+
+class MockRabbitServer(object):
+    def __init__(self, message, mid):
+        self.messages = [(message,)]
+        self.messages[0][0].update({
+            'd': {},
+            'a': 'k',
+            's': 'b'
+        })
+        self.messages[0][0]['d']['id'] = mid
+
+    def get_all(self, queue):
+        return self.messages
 
 
 class MockLogger(object):
@@ -51,7 +67,7 @@ class Channel(object):
 
 
 class MockRunner(object):
-    rabbitmq_server = ''
+    rabbitmq_server = TEST_VHOST_URL
     workers_ready = None
 
     def __init__(self, consumer_name, ini_file, instances_ini):
@@ -73,6 +89,10 @@ class MaxBunnyTestCase(unittest.TestCase):
         except Exception as inst:
             self.assertEqual(exc_type, inst.__class__)
             self.assertEqual(inst.message, msg)
+        else:
+            # Meant to be raised in tests that test exceptions,
+            # if the exception does not raise
+            self.assertEqual('', 'Did not raise')
 
 
 def is_rabbit_active():

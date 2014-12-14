@@ -48,10 +48,10 @@ def http_mock_post_user_activity(uri='tests.local'):
     )
 
 
-def http_mock_post_user_message(uri='tests.local'):
+def http_mock_post_user_message(uri='tests.local', message_id='0'):
     httpretty.register_uri(
         httpretty.POST, re.compile("http://{}/people/\w+/conversations/\w+/messages".format(uri)),
-        body=json.dumps({'id': '00000000000000000001'}),
+        body=json.dumps({'id': message_id}),
         status=201,
         content_type="application/json"
     )

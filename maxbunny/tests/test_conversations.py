@@ -4,18 +4,24 @@ from maxbunny.consumer import BunnyMessageRequeue
 
 from maxbunny.tests import MockRunner
 from maxbunny.tests import MockConnection
+from maxbunny.tests import MockRabbitServer
 from maxbunny.tests import MaxBunnyTestCase
 from maxbunny.tests import get_storing_logger
 from maxbunny.tests import is_rabbit_active
+from maxbunny.tests import TEST_VHOST_URL
 from maxbunny.tests.mock_http import http_mock_info
 from maxbunny.tests.mock_http import http_mock_post_user_message
 
+from maxbunny.tests.mockers.conversations import CONVERSATION_0
+
+from maxcarrot import RabbitClient
 from mock import patch
 import httpretty
 import warnings
+from time import sleep
 
-
-if not is_rabbit_active():
+MOCK_RABBIT = not is_rabbit_active()
+if MOCK_RABBIT:
     warnings.warn("""
 
         ************************ WARNING ********************
@@ -32,12 +38,29 @@ class ConversationTests(MaxBunnyTestCase):
         self.log_patch = patch('maxbunny.consumer.BunnyConsumer.configure_logger', new=get_storing_logger)
         self.log_patch.start()
 
-        if not is_rabbit_active():
-            self.log_patch = patch('rabbitpy.Connection', new=MockConnection)
-            self.log_patch.start()
+        if MOCK_RABBIT:
+            self.rabbit_patch = patch('rabbitpy.Connection', new=MockConnection)
+            self.rabbit_patch.start()
 
     def tearDown(self):
-        pass
+        self.log_patch.stop()
+        if MOCK_RABBIT:
+            self.rabbit_patch.stop()
+        else:
+            if hasattr(self, 'server'):
+                self.server.delete_user('testuser1')
+                self.server.get_all('push')
+                self.server.disconnect()
+
+    def set_server(self, message, mid):
+        if MOCK_RABBIT:
+            self.server = MockRabbitServer(message, mid)
+        else:
+            self.server = RabbitClient(TEST_VHOST_URL)
+            self.server.management.cleanup(delete_all=True)
+            self.server.declare()
+            self.server.create_users(CONVERSATION_0.users)
+            self.server.conversations.create(CONVERSATION_0.id, users=CONVERSATION_0.users)
 
     # ===========================
     # TESTS FOR FAILING SCENARIOS
@@ -137,54 +160,22 @@ class ConversationTests(MaxBunnyTestCase):
         """
         from maxbunny.consumers.conversations import __consumer__
         from maxbunny.tests.mockers.conversations import MISSING_DOMAIN_MESSAGE as message
+        message_id = '00000000001'
 
+        self.set_server(message, message_id)
         http_mock_info()
-        http_mock_post_user_message(uri='tests.default')
+        http_mock_post_user_message(uri='tests.default', message_id=message_id)
 
         runner = MockRunner('tweety', 'maxbunny.ini', 'instances2.ini')
         consumer = __consumer__(runner)
 
         consumer.process(message)
-        self.assertRaisesWithMessage(
-            BunnyMessageCancel,
-            ''.format(**message['d']),
-            consumer.process,
-            message
-        )
 
-        self.assertEqual(len(consumer.logger.infos), 0)
-        self.assertEqual(len(consumer.logger.warnings), 0)
+        sleep(0.1)  # Leave a minimum time to message to reach rabbitmq
+        messages = self.server.get_all('push')
+        self.assertEqual(len(messages), 1)
 
-    # @httpretty.activate
-    # def test_tweet_from_followed_user_max_empty(self):
-    #     """
-    #         Given there are no contexts linked with @twitter_user
-    #         And there are no users followed with @twitter_user
-    #         When a tweet from @twitter_user is received without hashtags
-    #         Then the tweet is not posted anywhere
-    #         And the message is dropped with message TWITTER_USER_NOT_LINKED_TO_MAX_USER
-
-    #     """
-    #     from maxbunny.consumers.tweety import __consumer__
-    #     from maxbunny.tests.mockers import TWEETY_MESSAGE_FROM_CONTEXT as message
-    #     from maxbunny.tests.mockers import NO_CONTEXTS as contexts
-    #     from maxbunny.tests.mockers import NO_USERS as users
-
-    #     http_mock_info()
-    #     http_mock_contexts(contexts)
-    #     http_mock_users(users)
-
-    #     runner = MockRunner('tweety', 'maxbunny.ini')
-    #     consumer = __consumer__(runner)
-
-    #     self.assertRaisesWithMessage(
-    #         BunnyMessageCancel,
-    #         TWITTER_USER_NOT_LINKED_TO_MAX_USER.format(**message['d']),
-    #         consumer.process,
-    #         message
-    #     )
-
-    #     self.assertEqual(len(consumer.logger.infos), 1)
-    #     self.assertEqual(len(consumer.logger.warnings), 0)
-
-    #     self.assertTrue(consumer.logger.infos[0].startswith('Processing tweet'))
+        self.assertEqual(messages[0][0]['a'], 'k')
+        self.assertEqual(messages[0][0]['o'], 'm')
+        self.assertEqual(messages[0][0]['s'], 'b')
+        self.assertEqual(messages[0][0]['d']['id'], '00000000001')
