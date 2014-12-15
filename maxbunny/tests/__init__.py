@@ -59,13 +59,18 @@ class MockLogger(object):
         temp_folder = tempfile.gettempdir()
         self.warnings_file = '{}/warnings'.format(temp_folder)
         self.infos_file = '{}/infos'.format(temp_folder)
+        self.errors_file = '{}/errors'.format(temp_folder)
         open(self.warnings_file, 'w').write('')
         open(self.infos_file, 'w').write('')
+        open(self.errors_file, 'w').write('')
 
     def info(self, message):
         open(self.infos_file, 'a').write(message.rstrip('\n') + '\n')
 
     def warning(self, message):
+        open(self.warnings_file, 'a').write(message.rstrip('\n') + '\n')
+
+    def error(self, message):
         open(self.warnings_file, 'a').write(message.rstrip('\n') + '\n')
 
     @staticmethod
@@ -80,6 +85,10 @@ class MockLogger(object):
     @property
     def warnings(self):
         return self.readlines(self.warnings_file)
+
+    @property
+    def errors(self):
+        return self.readlines(self.errors_file)
 
 
 class MockRunner(object):

@@ -5,7 +5,7 @@ from maxbunny.tests import MaxBunnyTestCase
 from maxbunny.tests import MockRunner
 from maxbunny.tests import TEST_VHOST_URL
 from maxcarrot import RabbitClient
-from multiprocessing import Process
+from threading import Thread
 
 from mock import patch
 from time import sleep
@@ -21,6 +21,19 @@ class TestConsumer(BunnyConsumer):
     def process(self, message):
         if self.exception:
             raise self.exception
+
+    def remote(self):
+        conn = self.channels[self.wid]['connection']
+        return conn._io._remote_name
+
+
+class ConsumerThread(Thread):
+    def __init__(self, consumer):
+        Thread.__init__(self)
+        self.consumer = consumer
+
+    def run(self):
+        self.consumer.consume(nowait=True)
 
 
 class ConsumerTests(MaxBunnyTestCase):
@@ -52,10 +65,9 @@ class ConsumerTests(MaxBunnyTestCase):
 
         runner = MockRunner('tweety', 'maxbunny.ini', 'instances.ini')
         consumer = TestConsumer(runner, exception=BunnyMessageCancel('Testing message drop'))
+        self.process = ConsumerThread(consumer)
 
         self.server.send('', '{}', routing_key='tests')
-
-        self.process = Process(target=consumer.consume, kwargs={"nowait": True})
         self.process.start()
 
         sleep(0.2)  # Leave a minimum time to message to reach rabbitmq
@@ -65,3 +77,5 @@ class ConsumerTests(MaxBunnyTestCase):
         self.assertEqual(len(consumer.logger.infos), 1)
         self.assertEqual(len(consumer.logger.warnings), 1)
         self.assertEqual(consumer.logger.warnings[0], 'Message dropped (NO_UUID), reason: Testing message drop')
+
+        self.server.management.force_close(consumer.remote())
