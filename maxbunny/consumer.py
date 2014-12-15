@@ -35,7 +35,7 @@ class BunnyMessageCancel(Exception):
 
 class BunnyConsumer(object):
     name = 'consumer'
-    queue = 'amq.queue'
+    queue = 'default'
 
     def __init__(self, runner, workers=1):
         """
@@ -266,6 +266,7 @@ class BunnyConsumer(object):
         """
         try:
             self.process(message)
+
         except BunnyMessageCancel as error:
             self.nack(message, error.message, notify=error.notify)
 

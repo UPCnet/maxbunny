@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from maxbunny.consumer import BunnyMessageCancel
-from maxbunny.consumer import BunnyMessageRequeue
 
 from maxbunny.tests import MockRunner
 from maxbunny.tests import MockConnection
@@ -117,7 +116,6 @@ class ConversationTests(MaxBunnyTestCase):
         httpretty.enable()
         http_mock_info()
 
-
         runner = MockRunner('tweety', 'maxbunny.ini', 'instances2.ini')
         consumer = __consumer__(runner)
 
@@ -152,7 +150,6 @@ class ConversationTests(MaxBunnyTestCase):
         httpretty.enable()
         http_mock_info()
 
-
         runner = MockRunner('tweety', 'maxbunny.ini', 'instances2.ini')
         consumer = __consumer__(runner)
 
@@ -185,7 +182,6 @@ class ConversationTests(MaxBunnyTestCase):
 
         httpretty.enable()
         http_mock_info()
-
 
         runner = MockRunner('tweety', 'maxbunny.ini', 'instances.ini')
         consumer = __consumer__(runner)
@@ -316,4 +312,3 @@ class ConversationTests(MaxBunnyTestCase):
         self.assertEqual(messages[0][0]['o'], 'm')
         self.assertEqual(messages[0][0]['s'], 'b')
         self.assertEqual(messages[0][0]['d']['id'], '00000000001')
-

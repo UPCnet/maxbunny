@@ -60,10 +60,14 @@ class MockLogger(object):
         self.warnings = []
 
     def info(self, message):
+        print message
         self.infos.append(message)
 
     def warning(self, message):
+        print message
+
         self.warnings.append(message)
+        print self.warnings
 
 
 class MockRunner(object):

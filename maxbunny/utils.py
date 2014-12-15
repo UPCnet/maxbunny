@@ -146,13 +146,6 @@ def setup_logging(config_uri):
         )
 
 
-def oauth2Header(username, token, scope="widgetcli"):
-    return {
-        "X-Oauth-Token": token,
-        "X-Oauth-Username": username,
-        "X-Oauth-Scope": scope}
-
-
 def findHashtags(text):
     """
         Returns a list of valid #hastags in text
