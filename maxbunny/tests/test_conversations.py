@@ -154,7 +154,6 @@ class ConversationTests(MaxBunnyTestCase):
         self.assertEqual(len(consumer.logger.infos), 0)
         self.assertEqual(len(consumer.logger.warnings), 0)
 
-    @httpretty.activate
     def test_missing_domain_with_default(self):
         """
         """
@@ -163,6 +162,9 @@ class ConversationTests(MaxBunnyTestCase):
         message_id = '00000000001'
 
         self.set_server(message, message_id)
+
+        httpretty.enable()
+
         http_mock_info()
         http_mock_post_user_message(uri='tests.default', message_id=message_id)
 
@@ -170,6 +172,9 @@ class ConversationTests(MaxBunnyTestCase):
         consumer = __consumer__(runner)
 
         consumer.process(message)
+
+        httpretty.disable()
+        httpretty.reset()
 
         sleep(0.1)  # Leave a minimum time to message to reach rabbitmq
         messages = self.server.get_all('push')
