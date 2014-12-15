@@ -186,8 +186,8 @@ class BunnyConsumer(object):
             self.logger.warning('AMQPNotFound: {}'.format(exc.message.reply_text))
         except ConnectionResetException:
             self.restart_worker('Rabbit Connection Reset')
-        except AMQPConnectionForced:
-            self.restart_worker('Forced Connection Close')
+        except AMQPConnectionForced as exc:
+            self.logger.error(exc.message)
         except thread.error:
             self.logger.error('TERM Signal Received. Dying ...')
         except AttributeError as exc:
