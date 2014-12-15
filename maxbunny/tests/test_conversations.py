@@ -52,6 +52,10 @@ class ConversationTests(MaxBunnyTestCase):
                 self.server.get_all('push')
                 self.server.disconnect()
 
+        # Make sure httpretty is disabled
+        httpretty.disable()
+        httpretty.reset()
+
     def set_server(self, message, mid):
         if MOCK_RABBIT:
             self.server = MockRabbitServer(message, mid)
@@ -200,9 +204,46 @@ class ConversationTests(MaxBunnyTestCase):
         messages = self.server.get_all('push')
         self.assertEqual(len(messages), 0)
 
-    # ===========================
-    # TESTS FOR FAILING SCENARIOS
-    # ===========================
+    def test_message_with_domain_not_found_from_max(self):
+        """
+            Given a message with a domain specified
+            And that domain exists in the list of known domains
+            When the message is processed
+            And  the conversation or user was not found on max
+            Then the message is not posted
+            And the push message is not queued
+        """
+        from maxbunny.consumers.conversations import __consumer__
+        from maxbunny.tests.mockers.conversations import CONVERSATION_MESSAGE as message
+        message_id = '00000000001'
+
+        self.set_server(message, message_id)
+
+        httpretty.enable()
+
+        http_mock_info()
+        http_mock_post_user_message(uri='tests.local', message_id=message_id, status=404)
+
+        runner = MockRunner('tweety', 'maxbunny.ini', 'instances2.ini')
+        consumer = __consumer__(runner)
+
+        self.assertRaisesWithMessage(
+            BunnyMessageCancel,
+            "User or conversation not found",
+            consumer.process,
+            message
+        )
+
+        httpretty.disable()
+        httpretty.reset()
+
+        sleep(0.1)  # Leave a minimum time to message to reach rabbitmq
+        messages = self.server.get_all('push')
+        self.assertEqual(len(messages), 0)
+
+    # ==============================
+    # TESTS FOR SUCCESFULL SCENARIOS
+    # ==============================
 
     def test_message_without_domain_to_default(self):
         """
@@ -275,3 +316,4 @@ class ConversationTests(MaxBunnyTestCase):
         self.assertEqual(messages[0][0]['o'], 'm')
         self.assertEqual(messages[0][0]['s'], 'b')
         self.assertEqual(messages[0][0]['d']['id'], '00000000001')
+
