@@ -31,13 +31,6 @@ class ConversationsConsumer(BunnyConsumer):
 
         domain = extract_domain(message)
 
-        # determine message object type
-        message_object_type = 'note'
-        if 'image' in message.data:
-            message_object_type = 'image'
-        if 'file' in message.data:
-            message_object_type = 'file'
-
         # If client is None it means that we could not load a client for the specified domain
         # Then we have to assert if it's because the domain is missing, and we couldn't load the default
         # Or the client for that domain is not defined
@@ -53,25 +46,7 @@ class ConversationsConsumer(BunnyConsumer):
             raise BunnyMessageCancel('Missing username in message')
         endpoint = client.people[message.user['username']].conversations[conversation_id].messages
 
-        if message_object_type in ['image', 'file']:
-            binary_data = base64.b64decode(message.data.get(message_object_type))
-            file_object = StringIO(binary_data)
-            query = dict(
-                object_objectType=message_object_type,
-                upload_file=file_object
-            )
-            object_content = message.data.get('text', '')
-            if object_content:
-                query['object_content'] = object_content
-
-            object_filename = message.data.get('filename', '')
-            if object_filename:
-                query['object_filename'] = object_filename
-
-            activity = endpoint.post(**query)
-
-        else:
-            activity = endpoint.post(object_content=message.data.get('text'))
+        activity = endpoint.post(object_content=message.data.get('text'))
 
         #Activity post returned None, so user or conversation was not found
         if activity is None:

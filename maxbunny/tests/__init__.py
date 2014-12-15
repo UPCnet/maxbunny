@@ -32,18 +32,6 @@ class MockRabbitServer(object):
         return self.messages
 
 
-class MockLogger(object):
-    def __init__(self):
-        self.infos = []
-        self.warnings = []
-
-    def info(self, message):
-        self.infos.append(message)
-
-    def warning(self, message):
-        self.warnings.append(message)
-
-
 class MockConnection(object):
 
     def __init__(self, *args, **kwargs):
@@ -64,6 +52,18 @@ class Channel(object):
 
     def __getattr__(self, name):
         return 1
+
+
+class MockLogger(object):
+    def __init__(self):
+        self.infos = []
+        self.warnings = []
+
+    def info(self, message):
+        self.infos.append(message)
+
+    def warning(self, message):
+        self.warnings.append(message)
 
 
 class MockRunner(object):
@@ -92,12 +92,13 @@ class MaxBunnyTestCase(unittest.TestCase):
         else:
             # Meant to be raised in tests that test exceptions,
             # if the exception does not raise
-            self.assertEqual('', 'Did not raise')
+            self.assertEqual('', 'Did not raise')   # pragma: no cover
 
 
 def is_rabbit_active():
+    active = False
     try:
         socket.socket().bind(('localhost', 5672))
     except:
-        return True
-    return False
+        active = True
+    return active

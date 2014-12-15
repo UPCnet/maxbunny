@@ -66,13 +66,19 @@ class ConversationTests(MaxBunnyTestCase):
     # TESTS FOR FAILING SCENARIOS
     # ===========================
 
-    @httpretty.activate
     def test_invalid_message_empty_message(self):
         """
+            Given a message with missing routing_key
+            When the message is processed
+            Then an exception is raised
+            And the push message is not queued
         """
         from maxbunny.consumers.conversations import __consumer__
         from maxbunny.tests.mockers import BAD_MESSAGE as message
 
+        self.set_server({}, None)
+
+        httpretty.enable()
         http_mock_info()
 
         runner = MockRunner('tweety', 'maxbunny.ini', 'instances.ini')
@@ -85,17 +91,28 @@ class ConversationTests(MaxBunnyTestCase):
             message
         )
 
-        self.assertEqual(len(consumer.logger.infos), 0)
-        self.assertEqual(len(consumer.logger.warnings), 0)
+        httpretty.disable()
+        httpretty.reset()
 
-    @httpretty.activate
+        sleep(0.1)  # Leave a minimum time to message to reach rabbitmq
+        messages = self.server.get_all('push')
+        self.assertEqual(len(messages), 0)
+
     def test_invalid_message_missing_username(self):
         """
+            Given a message with missing username
+            When the message is processed
+            Then an exception is raised
+            And the push message is not queued
         """
         from maxbunny.consumers.conversations import __consumer__
         from maxbunny.tests.mockers.conversations import MISSING_USERNAME_MESSAGE as message
 
+        self.set_server({}, None)
+
+        httpretty.enable()
         http_mock_info()
+
 
         runner = MockRunner('tweety', 'maxbunny.ini', 'instances2.ini')
         consumer = __consumer__(runner)
@@ -107,17 +124,30 @@ class ConversationTests(MaxBunnyTestCase):
             message
         )
 
-        self.assertEqual(len(consumer.logger.infos), 0)
-        self.assertEqual(len(consumer.logger.warnings), 0)
+        httpretty.disable()
+        httpretty.reset()
 
-    @httpretty.activate
+        sleep(0.1)  # Leave a minimum time to message to reach rabbitmq
+        messages = self.server.get_all('push')
+        self.assertEqual(len(messages), 0)
+
     def test_invalid_message_unknown_domain(self):
         """
+            Given a message with a domain specified
+            And that domain doesn't match any of the known domains
+            When the message is processed
+            Then an exception is raised
+            And the push message is not queued
         """
+
         from maxbunny.consumers.conversations import __consumer__
         from maxbunny.tests.mockers.conversations import UNKNOWN_DOMAIN_MESSAGE as message
 
+        self.set_server({}, None)
+
+        httpretty.enable()
         http_mock_info()
+
 
         runner = MockRunner('tweety', 'maxbunny.ini', 'instances2.ini')
         consumer = __consumer__(runner)
@@ -129,17 +159,29 @@ class ConversationTests(MaxBunnyTestCase):
             message
         )
 
-        self.assertEqual(len(consumer.logger.infos), 0)
-        self.assertEqual(len(consumer.logger.warnings), 0)
+        httpretty.disable()
+        httpretty.reset()
 
-    @httpretty.activate
-    def test_missing_domain_missing_domain(self):
+        sleep(0.1)  # Leave a minimum time to message to reach rabbitmq
+        messages = self.server.get_all('push')
+        self.assertEqual(len(messages), 0)
+
+    def test_missing_domain_missing_default(self):
         """
+            Given a message with no domain specified
+            And there is no default domain specified
+            When the message is processed
+            Then an exception is raised
+            And the push message is not queued
         """
         from maxbunny.consumers.conversations import __consumer__
         from maxbunny.tests.mockers.conversations import MISSING_DOMAIN_MESSAGE as message
 
+        self.set_server({}, None)
+
+        httpretty.enable()
         http_mock_info()
+
 
         runner = MockRunner('tweety', 'maxbunny.ini', 'instances.ini')
         consumer = __consumer__(runner)
@@ -151,11 +193,24 @@ class ConversationTests(MaxBunnyTestCase):
             message
         )
 
-        self.assertEqual(len(consumer.logger.infos), 0)
-        self.assertEqual(len(consumer.logger.warnings), 0)
+        httpretty.disable()
+        httpretty.reset()
 
-    def test_missing_domain_with_default(self):
+        sleep(0.1)  # Leave a minimum time to message to reach rabbitmq
+        messages = self.server.get_all('push')
+        self.assertEqual(len(messages), 0)
+
+    # ===========================
+    # TESTS FOR FAILING SCENARIOS
+    # ===========================
+
+    def test_message_without_domain_to_default(self):
         """
+            Given a message with no domain specified
+            And there is a default domain specified
+            When the message is processed
+            Then the message is posted
+            And the push message is queued
         """
         from maxbunny.consumers.conversations import __consumer__
         from maxbunny.tests.mockers.conversations import MISSING_DOMAIN_MESSAGE as message
@@ -167,6 +222,42 @@ class ConversationTests(MaxBunnyTestCase):
 
         http_mock_info()
         http_mock_post_user_message(uri='tests.default', message_id=message_id)
+
+        runner = MockRunner('tweety', 'maxbunny.ini', 'instances2.ini')
+        consumer = __consumer__(runner)
+
+        consumer.process(message)
+
+        httpretty.disable()
+        httpretty.reset()
+
+        sleep(0.1)  # Leave a minimum time to message to reach rabbitmq
+        messages = self.server.get_all('push')
+        self.assertEqual(len(messages), 1)
+
+        self.assertEqual(messages[0][0]['a'], 'k')
+        self.assertEqual(messages[0][0]['o'], 'm')
+        self.assertEqual(messages[0][0]['s'], 'b')
+        self.assertEqual(messages[0][0]['d']['id'], '00000000001')
+
+    def test_message_with_domain(self):
+        """
+            Given a message with a domain specified
+            And that domain exists in the list of known domains
+            When the message is processed
+            Then the message is posted
+            And the push message is queued
+        """
+        from maxbunny.consumers.conversations import __consumer__
+        from maxbunny.tests.mockers.conversations import CONVERSATION_MESSAGE as message
+        message_id = '00000000001'
+
+        self.set_server(message, message_id)
+
+        httpretty.enable()
+
+        http_mock_info()
+        http_mock_post_user_message(uri='tests.local', message_id=message_id)
 
         runner = MockRunner('tweety', 'maxbunny.ini', 'instances2.ini')
         consumer = __consumer__(runner)
