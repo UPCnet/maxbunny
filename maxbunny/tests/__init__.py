@@ -7,7 +7,7 @@ import unittest
 import socket
 
 from pamqp import specification
-
+import tempfile
 
 TESTS_PATH = os.path.dirname(sys.modules['maxbunny.tests'].__file__)
 RABBIT_URL = "amqp://guest:guest@localhost:5672"
@@ -56,18 +56,30 @@ class Channel(object):
 
 class MockLogger(object):
     def __init__(self):
-        self.infos = []
-        self.warnings = []
+        temp_folder = tempfile.gettempdir()
+        self.warnings_file = '{}/warnings'.format(temp_folder)
+        self.infos_file = '{}/infos'.format(temp_folder)
+        open(self.warnings_file, 'w').write('')
+        open(self.infos_file, 'w').write('')
 
     def info(self, message):
-        print message
-        self.infos.append(message)
+        open(self.infos_file, 'a').write(message.rstrip('\n') + '\n')
 
     def warning(self, message):
-        print message
+        open(self.warnings_file, 'a').write(message.rstrip('\n') + '\n')
 
-        self.warnings.append(message)
-        print self.warnings
+    @staticmethod
+    def readlines(filename):
+        content = open(filename).read()
+        return [line for line in content.split('\n') if line]
+
+    @property
+    def infos(self):
+        return self.readlines(self.infos_file)
+
+    @property
+    def warnings(self):
+        return self.readlines(self.warnings_file)
 
 
 class MockRunner(object):
