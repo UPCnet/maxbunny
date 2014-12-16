@@ -304,4 +304,4 @@ class BunnyConsumer(object):
             BunnyConsumer, receive a rabbitpy.Message and sould return one of
             BUNNY_OK, BUNNY_CANCEL or BUNNY_REQUEUE result codes
         """
-        pass
+        pass  # pragma: no cover
