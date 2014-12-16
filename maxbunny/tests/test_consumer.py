@@ -76,7 +76,7 @@ class ConsumerTests(MaxBunnyTestCase):
 
     def test_consumer_drop_no_uuid(self):
         """
-            Given a message with no UUID field
+            Given a invalid non-json message
             When the consumer loop processes the message
             And the message triggers a Cancel exception
             Then the message is dropped
@@ -84,10 +84,10 @@ class ConsumerTests(MaxBunnyTestCase):
             And the channel remains Open
         """
         runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
-        consumer = TestConsumer(runner, exception=BunnyMessageCancel('Testing message drop', notify=False))
+        consumer = TestConsumer(runner, exception=BunnyMessageCancel('Testing message drop'))
         self.process = ConsumerThread(consumer)
 
-        self.server.send('', '{}', routing_key='tests')
+        self.server.send('', '', routing_key='tests')
         self.process.start()
 
         sleep(0.2)  # Leave a minimum time to message to reach rabbitmq
@@ -96,7 +96,7 @@ class ConsumerTests(MaxBunnyTestCase):
         # MUST import sent here to get current sent mails
         from maxbunny.tests import sent
 
-        self.assertEqual(len(sent), 0)
+        self.assertEqual(len(sent), 1)
         self.assertEqual(len(consumer.logger.infos), 1)
         self.assertEqual(len(consumer.logger.warnings), 1)
         self.assertTrue(self.process.isAlive())
@@ -444,9 +444,9 @@ class ConsumerTests(MaxBunnyTestCase):
 
         sleep(1)  # Leave a minimum time to consumer to stop
         self.assertEqual(len(consumer.logger.infos), 1)
-        self.assertEqual(len(consumer.logger.warnings), 1)
+        self.assertEqual(len(consumer.logger.errors), 1)
         self.assertFalse(self.process.isAlive())
-        self.assertEqual(consumer.logger.warnings[0], 'CONNECTION_FORCED - Closed via management plugin')
+        self.assertEqual(consumer.logger.errors[0], 'CONNECTION_FORCED - Closed via management plugin')
 
         sleep(0.2)  # Leave a minimum time to rabbitmq to release messages
         queued = self.server.get_all('tests')

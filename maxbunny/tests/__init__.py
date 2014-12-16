@@ -71,7 +71,7 @@ class MockLogger(object):
         open(self.warnings_file, 'a').write(message.rstrip('\n') + '\n')
 
     def error(self, message):
-        open(self.warnings_file, 'a').write(message.rstrip('\n') + '\n')
+        open(self.errors_file, 'a').write(message.rstrip('\n') + '\n')
 
     @staticmethod
     def readlines(filename):
