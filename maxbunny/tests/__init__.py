@@ -90,6 +90,25 @@ class MockLogger(object):
     def errors(self):
         return self.readlines(self.errors_file)
 
+sent = []
+
+
+class MockEmailMessage(object):
+    def __init__(self, from_address, to_address, fullmessage):
+        self.from_address = from_address
+        self.to_address = to_address
+        self.fullmessage = fullmessage
+
+
+class MockSMTP(object):
+    def __init__(self, address):
+        self.address = address
+
+    def sendmail(self, from_address, to_address, fullmessage):
+        global sent
+        sent.append(MockEmailMessage(from_address, to_address, fullmessage))
+        return []
+
 
 class MockRunner(object):
     rabbitmq_server = TEST_VHOST_URL
@@ -98,7 +117,7 @@ class MockRunner(object):
     def __init__(self, consumer_name, ini_file, instances_ini):
         self.debug = consumer_name
         self.config = ConfigParser.ConfigParser()
-        self.config.read('{}/{}'.format(TESTS_PATH, 'maxbunny.ini'))
+        self.config.read('{}/{}'.format(TESTS_PATH, ini_file))
         self.clients = MaxClientsWrapper(
             '{}/{}'.format(TESTS_PATH, instances_ini),
             'default',
