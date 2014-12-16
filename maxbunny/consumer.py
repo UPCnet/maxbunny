@@ -238,17 +238,17 @@ class BunnyConsumer(object):
                 error_log,
                 message)
 
-    def requeue(self, message, error):
+    def requeue(self, message, error_message):
         """
             Requeues messages with a uuid. Logs and notifies the first requeuing
             of each message to specified mail. Messages without uuid will be canceled
         """
         uuid = get_message_uuid(message)
         if uuid is None:
-            self.nack(message, error.message)
+            self.nack(message, error_message)
         else:
             if uuid not in self.requeued:
-                self.logger.warning('Message {} reueued, reason: {}'.format(uuid, error))
+                self.logger.warning('Message {} reueued, reason: {}'.format(uuid, error_message))
                 error_log = traceback.format_exc()
                 send_requeue_traceback(
                     self.mail_settings,
@@ -278,7 +278,7 @@ class BunnyConsumer(object):
             # Requeue messages on max server malfunction [5xx]
             if error.code / 100 == 5:
                 error.message = 'Max server error: ' + error.message
-                self.requeue(message, error)
+                self.requeue(message, error.message)
             # Cancel message on any other error code
             else:
                 error.message = 'Max server error: ' + error.message
@@ -288,7 +288,7 @@ class BunnyConsumer(object):
         # Requeue messages on unknown consumer failures
         except Exception as error:
             error.message = 'Consumer failure: ' + error.message
-            self.requeue(message, error)
+            self.requeue(message, error.message)
         else:
             # If message successfull, remove it from requeued
             # (assuming it MAY have been requeued some time ago)

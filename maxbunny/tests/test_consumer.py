@@ -96,7 +96,6 @@ class ConsumerTests(MaxBunnyTestCase):
         # MUST import sent here to get current sent mails
         from maxbunny.tests import sent
 
-        self.assertEqual(len(queued), 0)
         self.assertEqual(len(sent), 0)
         self.assertEqual(len(consumer.logger.infos), 1)
         self.assertEqual(len(consumer.logger.warnings), 1)
@@ -104,6 +103,44 @@ class ConsumerTests(MaxBunnyTestCase):
         self.assertEqual(consumer.logger.warnings[0], 'Message dropped (NO_UUID), reason: Testing message drop')
 
         self.server.management.force_close(consumer.remote())
+
+        sleep(0.2)  # Leave a minimum time to rabbitmq to release messages
+        queued = self.server.get_all('tests')
+        self.assertEqual(len(queued), 0)
+
+    def test_consumer_drops_on_requeue_exception_without_uuid(self):
+        """
+            Given a message without UUID field
+            When the consumer loop processes the message
+            And the message triggers a Requeue exception
+            Then the message is requeued
+            And a warning is logged
+            And the channel remains Open
+            And a mail notification is sent
+        """
+        runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
+        consumer = TestConsumer(runner, exception=BunnyMessageRequeue('Test requeueing'))
+        self.process = ConsumerThread(consumer)
+
+        self.server.send('', '{}', routing_key='tests')
+        self.process.start()
+
+        # MUST import sent here to get current sent mails
+        from maxbunny.tests import sent
+
+        sleep(0.2)  # Leave a minimum time to mail to be sent
+
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.warnings), 1)
+        self.assertTrue(self.process.isAlive())
+        self.assertEqual(consumer.logger.warnings[0], 'Message dropped (NO_UUID), reason: Test requeueing')
+
+        self.server.management.force_close(consumer.remote())
+
+        sleep(0.2)  # Leave a minimum time to rabbitmq to release messages
+        queued = self.server.get_all('tests')
+        self.assertEqual(len(queued), 0)
 
     def test_consumer_drop_with_uuid(self):
         """
@@ -128,7 +165,6 @@ class ConsumerTests(MaxBunnyTestCase):
         # MUST import sent here to get current sent mails
         from maxbunny.tests import sent
 
-        self.assertEqual(len(queued), 0)
         self.assertEqual(len(sent), 0)
         self.assertEqual(len(consumer.logger.infos), 1)
         self.assertEqual(len(consumer.logger.warnings), 1)
@@ -136,6 +172,10 @@ class ConsumerTests(MaxBunnyTestCase):
         self.assertEqual(consumer.logger.warnings[0], 'Message dropped, reason: Testing message drop')
 
         self.server.management.force_close(consumer.remote())
+
+        sleep(0.2)  # Leave a minimum time to rabbitmq to release messages
+        queued = self.server.get_all('tests')
+        self.assertEqual(len(queued), 0)
 
     def test_consumer_drop_with_notification(self):
         """
@@ -160,7 +200,6 @@ class ConsumerTests(MaxBunnyTestCase):
         # MUST import sent here to get current sent mails
         from maxbunny.tests import sent
 
-        self.assertEqual(len(queued), 0)
         self.assertEqual(len(sent), 1)
         self.assertEqual(len(consumer.logger.infos), 1)
         self.assertEqual(len(consumer.logger.warnings), 1)
@@ -168,6 +207,10 @@ class ConsumerTests(MaxBunnyTestCase):
         self.assertEqual(consumer.logger.warnings[0], 'Message dropped, reason: Testing message drop')
 
         self.server.management.force_close(consumer.remote())
+
+        sleep(0.2)  # Leave a minimum time to rabbitmq to release messages
+        queued = self.server.get_all('tests')
+        self.assertEqual(len(queued), 0)
 
     def test_consumer_drop_no_recipient(self):
         """
@@ -193,7 +236,6 @@ class ConsumerTests(MaxBunnyTestCase):
         # MUST import sent here to get current sent mails
         from maxbunny.tests import sent
 
-        self.assertEqual(len(queued), 0)
         self.assertEqual(len(sent), 0)
         self.assertEqual(len(consumer.logger.infos), 1)
         self.assertEqual(len(consumer.logger.warnings), 1)
@@ -201,6 +243,10 @@ class ConsumerTests(MaxBunnyTestCase):
         self.assertEqual(consumer.logger.warnings[0], 'Message dropped, reason: Testing message drop')
 
         self.server.management.force_close(consumer.remote())
+
+        sleep(0.2)  # Leave a minimum time to rabbitmq to release messages
+        queued = self.server.get_all('tests')
+        self.assertEqual(len(queued), 0)
 
     def test_consumer_drop_on_max_non_5xx_error(self):
         """
@@ -226,7 +272,6 @@ class ConsumerTests(MaxBunnyTestCase):
         # MUST import sent here to get current sent mails
         from maxbunny.tests import sent
 
-        self.assertEqual(len(queued), 0)
         self.assertEqual(len(sent), 1)
         self.assertEqual(len(consumer.logger.infos), 1)
         self.assertEqual(len(consumer.logger.warnings), 1)
@@ -234,6 +279,10 @@ class ConsumerTests(MaxBunnyTestCase):
         self.assertEqual(consumer.logger.warnings[0], 'Message dropped, reason: Max server error: Unauthorized')
 
         self.server.management.force_close(consumer.remote())
+
+        sleep(0.2)  # Leave a minimum time to rabbitmq to release messages
+        queued = self.server.get_all('tests')
+        self.assertEqual(len(queued), 0)
 
     def test_consumer_drop_on_maxcarrot_exception(self):
         """
@@ -259,7 +308,6 @@ class ConsumerTests(MaxBunnyTestCase):
         # MUST import sent here to get current sent mails
         from maxbunny.tests import sent
 
-        self.assertEqual(len(queued), 0)
         self.assertEqual(len(sent), 1)
         self.assertEqual(len(consumer.logger.infos), 1)
         self.assertEqual(len(consumer.logger.warnings), 1)
@@ -267,6 +315,10 @@ class ConsumerTests(MaxBunnyTestCase):
         self.assertEqual(consumer.logger.warnings[0], 'Message dropped, reason: MaxCarrot Parsing error')
 
         self.server.management.force_close(consumer.remote())
+
+        sleep(0.2)  # Leave a minimum time to rabbitmq to release messages
+        queued = self.server.get_all('tests')
+        self.assertEqual(len(queued), 0)
 
     def test_consumer_requeues_on_max_5xx_error(self):
         """
@@ -295,7 +347,7 @@ class ConsumerTests(MaxBunnyTestCase):
         self.assertEqual(len(consumer.logger.infos), 1)
         self.assertEqual(len(consumer.logger.warnings), 1)
         self.assertTrue(self.process.isAlive())
-        self.assertEqual(consumer.logger.warnings[0], 'Message 0123456789 reueued, reason: Internal Server Error')
+        self.assertEqual(consumer.logger.warnings[0], 'Message 0123456789 reueued, reason: Max server error: Internal Server Error')
 
         self.server.management.force_close(consumer.remote())
 
@@ -365,7 +417,7 @@ class ConsumerTests(MaxBunnyTestCase):
         self.assertEqual(len(consumer.logger.infos), 1)
         self.assertEqual(len(consumer.logger.warnings), 1)
         self.assertTrue(self.process.isAlive())
-        self.assertEqual(consumer.logger.warnings[0], 'Message 0123456789 reueued, reason: Unknown exception')
+        self.assertEqual(consumer.logger.warnings[0], 'Message 0123456789 reueued, reason: Consumer failure: Unknown exception')
 
         self.server.management.force_close(consumer.remote())
 
@@ -423,9 +475,13 @@ class ConsumerTests(MaxBunnyTestCase):
         # MUST import sent here to get current sent mails
         from maxbunny.tests import sent
 
-        self.assertEqual(len(queued), 0)
         self.assertEqual(len(sent), 0)
         self.assertEqual(len(consumer.logger.infos), 1)
         self.assertEqual(len(consumer.logger.warnings), 0)
         self.assertTrue(self.process.isAlive())
+
         self.server.management.force_close(consumer.remote())
+
+        sleep(0.2)  # Leave a minimum time to rabbitmq to release messages
+        queued = self.server.get_all('tests')
+        self.assertEqual(len(queued), 0)
