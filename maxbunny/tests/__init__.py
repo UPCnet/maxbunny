@@ -114,10 +114,15 @@ class MockRunner(object):
     rabbitmq_server = TEST_VHOST_URL
     workers_ready = None
 
-    def __init__(self, consumer_name, ini_file, instances_ini):
+    def __init__(self, consumer_name, ini_file, instances_ini, cloudapis_ini='nocloudapis.ini'):
         self.debug = consumer_name
+
         self.config = ConfigParser.ConfigParser()
         self.config.read('{}/{}'.format(TESTS_PATH, ini_file))
+
+        self.cloudapis = ConfigParser.ConfigParser()
+        self.cloudapis.read('{}/{}'.format(TESTS_PATH, cloudapis_ini))
+
         self.clients = MaxClientsWrapper(
             '{}/{}'.format(TESTS_PATH, instances_ini),
             'default',
