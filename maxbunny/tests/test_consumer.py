@@ -90,11 +90,8 @@ class ConsumerTests(MaxBunnyTestCase):
         self.server.send('', '', routing_key='tests')
         self.process.start()
 
-        sleep(0.2)  # Leave a minimum time to message to reach rabbitmq
-        queued = self.server.get_all('tests')
-
-        # MUST import sent here to get current sent mails
-        from maxbunny.tests import sent
+        sleep(0.1)  # give a minum time to mail to be sent
+        from maxbunny.tests import sent  # MUST import sent here to get current sent mails,
 
         self.assertEqual(len(sent), 1)
         self.assertEqual(len(consumer.logger.infos), 1)
@@ -125,10 +122,8 @@ class ConsumerTests(MaxBunnyTestCase):
         self.server.send('', '{}', routing_key='tests')
         self.process.start()
 
-        # MUST import sent here to get current sent mails
-        from maxbunny.tests import sent
-
-        sleep(0.2)  # Leave a minimum time to mail to be sent
+        sleep(0.1)  # give a minum time to mail to be sent
+        from maxbunny.tests import sent  # MUST import sent here to get current sent mails,
 
         self.assertEqual(len(sent), 1)
         self.assertEqual(len(consumer.logger.infos), 1)
@@ -159,11 +154,8 @@ class ConsumerTests(MaxBunnyTestCase):
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
         self.process.start()
 
-        sleep(0.2)  # Leave a minimum time to message to reach rabbitmq
-        queued = self.server.get_all('tests')
-
-        # MUST import sent here to get current sent mails
-        from maxbunny.tests import sent
+        sleep(0.1)  # give a minum time to mail to be sent
+        from maxbunny.tests import sent  # MUST import sent here to get current sent mails,
 
         self.assertEqual(len(sent), 0)
         self.assertEqual(len(consumer.logger.infos), 1)
@@ -194,11 +186,8 @@ class ConsumerTests(MaxBunnyTestCase):
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
         self.process.start()
 
-        sleep(0.2)  # Leave a minimum time to message to reach rabbitmq
-        queued = self.server.get_all('tests')
-
-        # MUST import sent here to get current sent mails
-        from maxbunny.tests import sent
+        sleep(0.1)  # give a minum time to mail to be sent
+        from maxbunny.tests import sent  # MUST import sent here to get current sent mails,
 
         self.assertEqual(len(sent), 1)
         self.assertEqual(len(consumer.logger.infos), 1)
@@ -230,11 +219,8 @@ class ConsumerTests(MaxBunnyTestCase):
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
         self.process.start()
 
-        sleep(0.2)  # Leave a minimum time to message to reach rabbitmq
-        queued = self.server.get_all('tests')
-
-        # MUST import sent here to get current sent mails
-        from maxbunny.tests import sent
+        sleep(0.1)  # give a minum time to mail to be sent
+        from maxbunny.tests import sent  # MUST import sent here to get current sent mails,
 
         self.assertEqual(len(sent), 0)
         self.assertEqual(len(consumer.logger.infos), 1)
@@ -266,11 +252,8 @@ class ConsumerTests(MaxBunnyTestCase):
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
         self.process.start()
 
-        sleep(0.2)  # Leave a minimum time to message to reach rabbitmq
-        queued = self.server.get_all('tests')
-
-        # MUST import sent here to get current sent mails
-        from maxbunny.tests import sent
+        sleep(0.1)  # give a minum time to mail to be sent
+        from maxbunny.tests import sent  # MUST import sent here to get current sent mails,
 
         self.assertEqual(len(sent), 1)
         self.assertEqual(len(consumer.logger.infos), 1)
@@ -302,11 +285,8 @@ class ConsumerTests(MaxBunnyTestCase):
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
         self.process.start()
 
-        sleep(0.2)  # Leave a minimum time to message to reach rabbitmq
-        queued = self.server.get_all('tests')
-
-        # MUST import sent here to get current sent mails
-        from maxbunny.tests import sent
+        sleep(0.1)  # give a minum time to mail to be sent
+        from maxbunny.tests import sent  # MUST import sent here to get current sent mails,
 
         self.assertEqual(len(sent), 1)
         self.assertEqual(len(consumer.logger.infos), 1)
@@ -338,10 +318,8 @@ class ConsumerTests(MaxBunnyTestCase):
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
         self.process.start()
 
-        # MUST import sent here to get current sent mails
-        from maxbunny.tests import sent
-
-        sleep(0.2)  # Leave a minimum time to mail to be sent
+        sleep(0.1)  # give a minum time to mail to be sent
+        from maxbunny.tests import sent  # MUST import sent here to get current sent mails,
 
         self.assertEqual(len(sent), 1)
         self.assertEqual(len(consumer.logger.infos), 1)
@@ -373,10 +351,8 @@ class ConsumerTests(MaxBunnyTestCase):
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
         self.process.start()
 
-        # MUST import sent here to get current sent mails
-        from maxbunny.tests import sent
-
-        sleep(0.2)  # Leave a minimum time to mail to be sent
+        sleep(0.1)  # give a minum time to mail to be sent
+        from maxbunny.tests import sent  # MUST import sent here to get current sent mails,
 
         self.assertEqual(len(sent), 1)
         self.assertEqual(len(consumer.logger.infos), 1)
@@ -408,10 +384,8 @@ class ConsumerTests(MaxBunnyTestCase):
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
         self.process.start()
 
-        # MUST import sent here to get current sent mails
-        from maxbunny.tests import sent
-
-        sleep(0.2)  # Leave a minimum time to mail to be sent
+        sleep(0.1)  # give a minum time to mail to be sent
+        from maxbunny.tests import sent  # MUST import sent here to get current sent mails,
 
         self.assertEqual(len(sent), 1)
         self.assertEqual(len(consumer.logger.infos), 1)
@@ -469,11 +443,8 @@ class ConsumerTests(MaxBunnyTestCase):
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
         self.process.start()
 
-        sleep(0.2)  # Leave a minimum time to message to reach rabbitmq
-        queued = self.server.get_all('tests')
-
-        # MUST import sent here to get current sent mails
-        from maxbunny.tests import sent
+        sleep(0.1)  # give a minum time to mail to be sent
+        from maxbunny.tests import sent  # MUST import sent here to get current sent mails,
 
         self.assertEqual(len(sent), 0)
         self.assertEqual(len(consumer.logger.infos), 1)
