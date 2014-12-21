@@ -1,3 +1,4 @@
+
 class RabbitpyMockMessage(dict):
     def __init__(self, message):
         self.routing_key = message.pop('routing_key', '')
@@ -8,3 +9,8 @@ class RabbitpyMockMessage(dict):
 
 
 BAD_MESSAGE = RabbitpyMockMessage({})
+
+
+class APNSMockResponse(object):
+    def __init__(self, failed):
+        self.failed = failed

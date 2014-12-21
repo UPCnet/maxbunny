@@ -109,6 +109,27 @@ class MockSMTP(object):
         sent.append(MockEmailMessage(from_address, to_address, fullmessage))
         return []
 
+apns_response = {}
+
+
+class MockAPNSSession(object):
+    def get_connection(*args, **kwargs):
+        return True
+
+
+class MockAPNs(object):
+    def __init__(self, connection):
+        pass
+
+    def send(self, *args, **kwargs):
+        global apns_response
+        return apns_response
+
+
+def set_apns_response(response):
+    global apns_response
+    apns_response = response
+
 
 class MockRunner(object):
     rabbitmq_server = TEST_VHOST_URL

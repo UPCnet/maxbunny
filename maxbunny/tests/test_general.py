@@ -48,3 +48,34 @@ class GeneralTests(MaxBunnyTestCase):
         from maxbunny.utils import extract_domain
         domain = extract_domain({'domain': ' tests '})
         self.assertEqual(domain, 'tests')
+
+    def test_normalize_message_without_user(self):
+        from maxbunny.utils import normalize_message
+
+        message = {"object": "message"}
+        message_normalized = normalize_message(message)
+        self.assertNotIn('user', message_normalized)
+
+    def test_normalize_message_user_plain(self):
+        from maxbunny.utils import normalize_message
+
+        message = {"user": "testuser1"}
+        message_normalized = normalize_message(message)
+        self.assertEqual(message_normalized['user']['username'], 'testuser1')
+        self.assertEqual(message_normalized['user']['displayname'], 'testuser1')
+
+    def test_normalize_message_user_without_displayname(self):
+        from maxbunny.utils import normalize_message
+
+        message = {"user": {"username": "testuser1"}}
+        message_normalized = normalize_message(message)
+        self.assertEqual(message_normalized['user']['username'], 'testuser1')
+        self.assertEqual(message_normalized['user']['displayname'], 'testuser1')
+
+    def test_normalize_message_user_with_displayname(self):
+        from maxbunny.utils import normalize_message
+
+        message = {"user": {"username": "testuser1", "displayname": "Test User 1"}}
+        message_normalized = normalize_message(message)
+        self.assertEqual(message_normalized['user']['username'], 'testuser1')
+        self.assertEqual(message_normalized['user']['displayname'], 'Test User 1')

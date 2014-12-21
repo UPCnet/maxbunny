@@ -55,3 +55,12 @@ def http_mock_post_user_message(uri='tests.local', message_id='0', status=201):
         status=status,
         content_type="application/json"
     )
+
+
+def http_mock_get_conversation_tokens(tokens, uri='tests.local', status=200):
+    httpretty.register_uri(
+        httpretty.GET, re.compile("http://{}/conversations/\w+/tokens".format(uri)),
+        body=json.dumps(tokens),
+        status=status,
+        content_type="application/json"
+    )
