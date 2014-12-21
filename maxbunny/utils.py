@@ -61,6 +61,22 @@ def extract_domain(message):
     return domain
 
 
+def normalize_message(message):
+    # Catch malformed users as a single string
+    user = message.get('user', None)
+
+    if isinstance(user, dict):
+        message_username = user.get('username', "")
+        message_display_name = user.get('displayname', message_username)
+    elif isinstance(user, basestring):
+        message_username = user
+        message_display_name = user
+
+    if user is not None:
+        message['user'] = {"username": message_username, "displayname": message_display_name}
+    return message
+
+
 def send_traceback(mail_settings, consumer_name, traceback, rabbitpy_message, template='', logger=None, subject=''):
     try:
         message = json.dumps(RabbitMessage.unpack(rabbitpy_message.json()))

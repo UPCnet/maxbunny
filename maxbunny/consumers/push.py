@@ -8,6 +8,7 @@ from gcmclient import JSONMessage
 from maxbunny.consumer import BunnyConsumer, BunnyMessageCancel
 from maxcarrot.message import RabbitMessage
 from maxbunny.utils import extract_domain
+from maxbunny.utils import normalize_message
 
 import re
 from copy import deepcopy
@@ -31,25 +32,26 @@ class PushConsumer(BunnyConsumer):
             raise BunnyMessageCancel('PUSH keys not configured')
 
         packed_message = rabbitpy_message.json()
-        message = RabbitMessage.unpack(packed_message)
-
-        # Forward the routing key to the mobile apps
-        message['destination'] = rabbitpy_message.routing_key
+        message = normalize_message(RabbitMessage.unpack(packed_message))
 
         message_object = message.get('object', None)
         message_action = message.get('action', None)
+        message_data = message.get('data', {})
+        message_data_id = message_data.get('id', None)
+        message_data_text = message_data.get('text', '')
+
         message_user = message.get('user', {})
-        if isinstance(message_user, dict):
-            message_username = message_user.get('username', "")
-            message_display_name = message.get('user', {}).get('displayname', message_username)
-        else:
-            message_username = message_user
-            message_display_name = message_user
+        message_username = message_user.get('username', None)
+        message_display_name = message_user.get('displayname', None)
+
+        if not message_username:
+            raise BunnyMessageCancel('Missing or empty user data')
 
         prepend_user_in_alert = True
 
         tokens = None
         tokens_by_platform = {}
+        usernames_by_token = {}
 
         domain = extract_domain(message)
         client = self.clients[domain]
@@ -57,31 +59,42 @@ class PushConsumer(BunnyConsumer):
         # Client will be None only if after determining the domain (or getting the default),
         # no client could be found matching that domain
         if client is None:
-            raise BunnyMessageCancel('Unknown domain {}'.format(domain))
+            raise BunnyMessageCancel('Unknown domain "unknown"'.format(domain))
 
-        # messages from a conversation
-        if message_object in ['message', 'conversation ']:
-            conversation_id = re.search(r'(\w+).(?:messages|notifications)', rabbitpy_message.routing_key).groups()[0]
+        # Message from a conversation
+        if message_object == 'message':
+            match = re.search(r'(\w+).(?:messages|notifications)', rabbitpy_message.routing_key)
+            conversation_id = match.groups()[0] if match else None
 
             if conversation_id is None:
-                raise BunnyMessageCancel('The message received is not from a valid conversation')
+                raise BunnyMessageCancel('The received message is not from a valid conversation')
+
+            # Forward the routing key to the mobile apps
+            message['destination'] = conversation_id
 
             tokens = client.conversations[conversation_id].tokens.get()
 
-        # messages from a context
+        # Post or comment from a context
         elif message_object == 'activity':
             context_id = rabbitpy_message.routing_key
 
             if context_id is None:
-                raise BunnyMessageCancel('The activity received is not from a valid context')
+                raise BunnyMessageCancel('The received message is not from a valid context')
+
+            # Forward the routing key to the mobile apps
+            message['destination'] = context_id
 
             tokens = client.contexts[context_id].tokens.get()
 
-        # messages from a context
+        # Conversation creation object
         elif message_object == 'conversation':
-            conversation_id = re.search(r'(\w+).(?:messages|notifications)', rabbitpy_message.routing_key).groups()[0]
+            match = re.search(r'(\w+).(?:messages|notifications)', rabbitpy_message.routing_key).groups()[0]
+            conversation_id = match.groups()[0] if match else None
+
             if conversation_id is None:
-                raise BunnyMessageCancel('The activity received is not from a valid context')
+                raise BunnyMessageCancel('The received message is not from a valid conversation')
+
+            message['destination'] = conversation_id
 
             tokens = client.conversations[conversation_id].tokens.get()
 
@@ -115,15 +128,18 @@ class PushConsumer(BunnyConsumer):
             tokens = client.conversations[conversation_id].tokens.get()
 
         else:
-            raise BunnyMessageCancel('The activity received has an unknown object type')
+            raise BunnyMessageCancel('The received message has an unknown object type')
 
-        if tokens is None:
+        if not tokens:
             raise BunnyMessageCancel('No tokens received', notify=False)
 
+        # Map user and tokens, indexed by platform and token
         for token in tokens:
             tokens_by_platform.setdefault(token.get('platform'), [])
+            usernames_by_token.setdefault(token.get('token'), [])
+            usernames_by_token[token.get('token')].append(token.get('username'))
 
-            is_debug_message = '#pushdebug' in message.get('data', {}).get('text', '')
+            is_debug_message = '#pushdebug' in message_data_text
             token_is_from_sender = token.get('username') == message_username
             token_is_duplicated = token.get('token') in tokens_by_platform[token.get('platform')]
 
@@ -134,14 +150,15 @@ class PushConsumer(BunnyConsumer):
             if (is_debug_message or not token_is_from_sender) and not token_is_duplicated:
                 tokens_by_platform[token.get('platform')].append(token.get('token'))
 
+        processed_tokens = []
         if self.ios_push_certificate_file and tokens_by_platform.get('iOS', []):
             try:
-                message_text = message.get('data', {}).get('text', "")
+                message_text = message_data_text
                 if prepend_user_in_alert:
                     alert_text = u'{}: {}'.format(message_display_name, message_text)
                 else:
                     alert_text = message_text
-                self.send_ios_push_notifications(tokens_by_platform['iOS'], alert_text, message.packed)
+                processed_tokens += self.send_ios_push_notifications(tokens_by_platform['iOS'], alert_text, message.packed)
             except Exception as error:
                 exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.__name__)
                 return_message = "iOS device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['iOS'], exception_class, error.message)
@@ -149,42 +166,90 @@ class PushConsumer(BunnyConsumer):
 
         if self.android_push_api_key and tokens_by_platform.get('android', []):
             try:
-                self.send_android_push_notifications(tokens_by_platform['android'], message.packed)
+                processed_tokens += self.send_android_push_notifications(tokens_by_platform['android'], message.packed)
             except Exception as error:
                 exception_class = '{}.{}'.format(error.__class__.__module__, error.__class__.__name__)
                 return_message = "Android device push failed: {0}, reason: {1} {2}".format(tokens_by_platform['android'], exception_class, error.message)
                 raise BunnyMessageCancel(return_message, notify=False)
 
-        return
+        # If we reach here, push messages had been sent without major failures
+        # But may have errors on particular tokens. Let's log successes and failures of
+        # all processed tokens, showing the associated user(s) (not the token), for mental sanity.
+        succeed = []
+        failed = []
+
+        succeeded_tokens = 0
+
+        # Construct a namespace reference id, that includes the domain and
+        # the context type & id on the source max server
+        mid = message_data_id if message_data_id else '<missing-id>'
+        target = 'activity' if message_object == 'activity' else 'messages'
+        message_full_id = '{}.{}.{}'.format(target, message['destination'], mid)
+
+        # Aggregate data from both success and failures
+        for platform, token, error in processed_tokens:
+            token_usernames = usernames_by_token.get(token, [])
+            usernames_string = ','.join(token_usernames)
+            if len(token_usernames) > 1:
+                self.logger.warning('[{}] {} token {} shared by {}'.format(domain, platform, token, usernames_string))
+
+            if error is None:
+                succeed += token_usernames
+                succeeded_tokens += 1
+            else:
+                failed.append((platform, usernames_string, error))
+
+        # Log once for all successes
+        if succeed:
+            self.logger.info('[{}] SUCCEDED {}/{} push {} to {}'.format(domain, succeeded_tokens, len(processed_tokens), message_full_id, ','.join(succeed)))
+
+        for platform, username, reason in failed:
+            self.logger.warning('[{}] FAILED {} push {} to {}: {}'.format(domain, platform, message_full_id, username, reason))
+
+        return processed_tokens
 
     def send_ios_push_notifications(self, tokens, alert, message):
+        sanitized_tokens = [token for token in tokens if re.match(r'^[a-fA-F0-9]{64}$', token, re.IGNORECASE)]
+
         con = self.ios_session.get_connection("push_production", cert_file=self.ios_push_certificate_file)
         extra = deepcopy(message)
 
-        if 'd' in extra:
-            del extra['d']
-        if 'g' in extra:
-            del extra['g']
+        extra.pop('d', None)
+        extra.pop('g', None)
         if 'u' in extra:
             if 'd' in extra['u'] and isinstance(extra['u'], dict):
                 del extra['u']['d']
-
-        push_message = Message(tokens, alert=alert, badge=1, sound='default', extra=extra)
+        push_message = Message(sanitized_tokens, alert=alert, badge=1, sound='default', extra=extra)
 
         # Send the message.
         srv = APNs(con)
         res = srv.send(push_message)
 
-        # Check failures. Check codes in APNs reference docs.
-        for token, reason in res.failed.items():
-            code, errmsg = reason
-            return_message = u"[iOS] Device push failed: {0}, reason: {1}".format(token, errmsg)
-            tokens.remove(token)
-            self.logger.info(return_message)
+        # If APNS doesn't crash for unknown reasons,
+        # collect result for each push sent
+        # Exceptions caused by APNS failure or code bugs will be
+        # catched in a upper leve
 
-        return_message = u"[iOS] Successfully sent {} to {}.".format(push_message.alert, tokens)
-        self.logger.info(return_message)
-        return return_message
+        processed_tokens = []
+
+        for token in tokens:
+            if token in res.failed:
+                processed_tokens.append(('ios', token, 'ERR={} {}'.format(*res.failed[token])))
+            else:
+                processed_tokens.append(('ios', token, None))
+
+        return processed_tokens
+
+        # # Check failures. Check codes in APNs reference docs.
+        # for token, reason in res.failed.items():
+        #     code, errmsg = reason
+        #     return_message = u"[iOS] Device push failed: {0}, reason: {1}".format(token, errmsg)
+        #     tokens.remove(token)
+        #     self.logger.info(return_message)
+
+        # return_message = u"[iOS] Successfully sent {} to {}.".format(push_message.alert, tokens)
+        # self.logger.info(return_message)
+        # return return_message
 
     def send_android_push_notifications(self, tokens, message):
         gcm = GCM(self.android_push_api_key)
