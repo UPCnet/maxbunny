@@ -115,7 +115,8 @@ class PushConsumer(BunnyConsumer):
 
         # Log once for all successes
         if succeed:
-            self.logger.info('[{}] SUCCEDED {}/{} push {} to {}'.format(domain, succeeded_tokens, len(processed_tokens), message_full_id, ','.join(succeed)))
+            unique_sorted_users = sorted(list(set(succeed)))
+            self.logger.info('[{}] SUCCEDED {}/{} push {} to {}'.format(domain, succeeded_tokens, len(processed_tokens), message_full_id, ','.join(unique_sorted_users)))
 
         for platform, username, reason in failed:
             self.logger.warning('[{}] FAILED {} push {} to {}: {}'.format(domain, platform, message_full_id, username, reason))
@@ -203,11 +204,9 @@ class PushConsumer(BunnyConsumer):
 
         # Remove unnecessary fields
         extra = deepcopy(message)
-        extra.pop('d', None)
-        extra.pop('g', None)
-        if 'u' in extra:
-            if 'd' in extra['u'] and isinstance(extra['u'], dict):
-                del extra['u']['d']
+        extra.pop('d', None)        # Remove data field
+        extra.pop('g', None)        # Remove uuid field
+        extra['u'].pop('d', None)   # Remove displayname field
 
         # Prepare the push message
         push_message = Message(
@@ -225,7 +224,7 @@ class PushConsumer(BunnyConsumer):
         # If APNS doesn't crash for unknown reasons,
         # collect result for each push sent
         # Exceptions caused by APNS failure or code bugs will be
-        # catched in a upper leve
+        # catched in a upper level
 
         processed_tokens = []
 
@@ -238,6 +237,8 @@ class PushConsumer(BunnyConsumer):
         return processed_tokens
 
     def send_android_push_notifications(self, tokens, message):
+        """
+        """
         if not tokens:
             return []
 
@@ -261,7 +262,7 @@ class PushConsumer(BunnyConsumer):
 
         processed_tokens = []
         for token in tokens:
-            if token in self.success:
+            if token in res.success:
                 processed_tokens.append(('ios', token, None))
 
             elif token in res.unavailable:

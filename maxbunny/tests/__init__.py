@@ -118,7 +118,7 @@ class MockAPNSSession(object):
 
 
 class MockAPNs(object):
-    def __init__(self, connection):
+    def __init__(self, *args, **kwargs):
         pass
 
     def send(self, *args, **kwargs):
@@ -132,6 +132,26 @@ class MockAPNs(object):
 def set_apns_response(response):
     global apns_response
     apns_response = response
+
+
+gcm_response = {}
+
+
+class MockGCM(object):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def send(self, *args, **kwargs):
+        global gcm_response
+        if isinstance(gcm_response, Exception):
+            raise gcm_response
+        else:
+            return gcm_response
+
+
+def set_gcm_response(response):
+    global gcm_response
+    gcm_response = response
 
 
 class MockRunner(object):

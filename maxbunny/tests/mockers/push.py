@@ -1,5 +1,6 @@
 from maxbunny.tests.mockers import RabbitpyMockMessage
 from maxbunny.tests.mockers import APNSMockResponse
+from maxbunny.tests.mockers import GCMMockResponse
 
 from collections import namedtuple
 
@@ -108,6 +109,7 @@ IOS_TOKENS = [
     },
 ]
 
+
 IOS_TOKENS_ONE_SHARED = [
     {
         "username": "testuser1",
@@ -123,5 +125,54 @@ IOS_TOKENS_ONE_SHARED = [
         "username": "testuser3",
         "platform": "iOS",
         "token": "0123456789abcdef000000000000000000000000000000000000000000000002"  # This token is shared with testuser2
+    },
+]
+
+ANDROID_ACK_SUCCESS = GCMMockResponse({
+    'success': {
+        "APA91bEAYeD30DGSgmtqbSDH68Et2cjShC7zDloVjVjM3gUVocCAk76Hw_OOEq0skInyh2yL0pwsQG9JZiOlTxihfrFX_FO_Nnihn4pD2F5NaguVLoyMIIk8k83ja7le6SW6ZCh0TZfCCOwRuIBddskb2t_qr-001": True,
+        "APA91bEAYeD30DGSgmtqbSDH68Et2cjShC7zDloVjVjM3gUVocCAk76Hw_OOEq0skInyh2yL0pwsQG9JZiOlTxihfrFX_FO_Nnihn4pD2F5NaguVLoyMIIk8k83ja7le6SW6ZCh0TZfCCOwRuIBddskb2t_qr-002": True,
+        "APA91bEAYeD30DGSgmtqbSDH68Et2cjShC7zDloVjVjM3gUVocCAk76Hw_OOEq0skInyh2yL0pwsQG9JZiOlTxihfrFX_FO_Nnihn4pD2F5NaguVLoyMIIk8k83ja7le6SW6ZCh0TZfCCOwRuIBddskb2t_qr-003": True
+    }
+})
+
+ANDROID_ACK_SUCCESS_ONE_FAILED = GCMMockResponse({
+    'success': {
+        "APA91bEAYeD30DGSgmtqbSDH68Et2cjShC7zDloVjVjM3gUVocCAk76Hw_OOEq0skInyh2yL0pwsQG9JZiOlTxihfrFX_FO_Nnihn4pD2F5NaguVLoyMIIk8k83ja7le6SW6ZCh0TZfCCOwRuIBddskb2t_qr-001": True,
+        "APA91bEAYeD30DGSgmtqbSDH68Et2cjShC7zDloVjVjM3gUVocCAk76Hw_OOEq0skInyh2yL0pwsQG9JZiOlTxihfrFX_FO_Nnihn4pD2F5NaguVLoyMIIk8k83ja7le6SW6ZCh0TZfCCOwRuIBddskb2t_qr-002": True,
+    },
+    'failed': {
+        "APA91bEAYeD30DGSgmtqbSDH68Et2cjShC7zDloVjVjM3gUVocCAk76Hw_OOEq0skInyh2yL0pwsQG9JZiOlTxihfrFX_FO_Nnihn4pD2F5NaguVLoyMIIk8k83ja7le6SW6ZCh0TZfCCOwRuIBddskb2t_qr-003": 'Android error message'
+    }
+})
+
+ANDROID_ACK_SUCCESS_ALL_FAILED_MIXED = GCMMockResponse({
+    'unavailable': ["APA91bEAYeD30DGSgmtqbSDH68Et2cjShC7zDloVjVjM3gUVocCAk76Hw_OOEq0skInyh2yL0pwsQG9JZiOlTxihfrFX_FO_Nnihn4pD2F5NaguVLoyMIIk8k83ja7le6SW6ZCh0TZfCCOwRuIBddskb2t_qr-001"],
+    'not_registered': ["APA91bEAYeD30DGSgmtqbSDH68Et2cjShC7zDloVjVjM3gUVocCAk76Hw_OOEq0skInyh2yL0pwsQG9JZiOlTxihfrFX_FO_Nnihn4pD2F5NaguVLoyMIIk8k83ja7le6SW6ZCh0TZfCCOwRuIBddskb2t_qr-002"],
+    'failed': {
+        "APA91bEAYeD30DGSgmtqbSDH68Et2cjShC7zDloVjVjM3gUVocCAk76Hw_OOEq0skInyh2yL0pwsQG9JZiOlTxihfrFX_FO_Nnihn4pD2F5NaguVLoyMIIk8k83ja7le6SW6ZCh0TZfCCOwRuIBddskb2t_qr-003": 'Android error message'
+    }
+})
+
+ANDROID_TOKENS = [
+    {
+        "username": "testuser0",
+        "platform": "android",
+        "token": "APA91bEAYeD30DGSgmtqbSDH68Et2cjShC7zDloVjVjM3gUVocCAk76Hw_OOEq0skInyh2yL0pwsQG9JZiOlTxihfrFX_FO_Nnihn4pD2F5NaguVLoyMIIk8k83ja7le6SW6ZCh0TZfCCOwRuIBddskb2t_qr-000"
+    },
+    {
+        "username": "testuser1",
+        "platform": "android",
+        "token": "APA91bEAYeD30DGSgmtqbSDH68Et2cjShC7zDloVjVjM3gUVocCAk76Hw_OOEq0skInyh2yL0pwsQG9JZiOlTxihfrFX_FO_Nnihn4pD2F5NaguVLoyMIIk8k83ja7le6SW6ZCh0TZfCCOwRuIBddskb2t_qr-001"
+    },
+    {
+        "username": "testuser2",
+        "platform": "android",
+        "token": "APA91bEAYeD30DGSgmtqbSDH68Et2cjShC7zDloVjVjM3gUVocCAk76Hw_OOEq0skInyh2yL0pwsQG9JZiOlTxihfrFX_FO_Nnihn4pD2F5NaguVLoyMIIk8k83ja7le6SW6ZCh0TZfCCOwRuIBddskb2t_qr-002"
+    },
+    {
+        "username": "testuser3",
+        "platform": "android",
+        "token": "APA91bEAYeD30DGSgmtqbSDH68Et2cjShC7zDloVjVjM3gUVocCAk76Hw_OOEq0skInyh2yL0pwsQG9JZiOlTxihfrFX_FO_Nnihn4pD2F5NaguVLoyMIIk8k83ja7le6SW6ZCh0TZfCCOwRuIBddskb2t_qr-003"
     },
 ]

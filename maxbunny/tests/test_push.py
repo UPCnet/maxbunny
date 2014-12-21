@@ -4,7 +4,9 @@ from maxbunny.consumer import BunnyMessageCancel
 from maxbunny.tests import MockRunner
 from maxbunny.tests import MockAPNSSession
 from maxbunny.tests import MockAPNs
+from maxbunny.tests import MockGCM
 from maxbunny.tests import set_apns_response
+from maxbunny.tests import set_gcm_response
 from maxbunny.tests import MaxBunnyTestCase
 from maxbunny.tests import get_storing_logger
 from maxbunny.tests.mock_http import http_mock_info
@@ -25,10 +27,14 @@ class PushTests(MaxBunnyTestCase):
         self.apns_session_patch = patch('apnsclient.Session', new=MockAPNSSession)
         self.apns_session_patch.start()
 
+        self.gcm_server_patch = patch('gcmclient.GCM', new=MockGCM)
+        self.gcm_server_patch.start()
+
     def tearDown(self):
         self.log_patch.stop()
+        self.apns_server_patch.stop()
         self.apns_session_patch.stop()
-        self.apns_session_patch.start()
+        self.gcm_server_patch.stop()
         httpretty.disable()
         httpretty.reset()
 
@@ -277,10 +283,7 @@ class PushTests(MaxBunnyTestCase):
             And users in conversation have valid device tokens
             And testuser3 has a invalid device token
             When the message is processed
-            Then an exception is raised
-            And the push message is sent
-            And the sender don't receive the push
-            And testuser3 don't receive the push
+            Then anyone receives the push
         """
         from maxbunny.consumers.push import __consumer__
         from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
@@ -302,6 +305,39 @@ class PushTests(MaxBunnyTestCase):
         self.assertEqual(consumer.logger.warnings[0], '[tests] FAILED ios push messages.000000000000.000000000001 to testuser1: ERR=8 Invalid Token')
         self.assertEqual(consumer.logger.warnings[1], '[tests] FAILED ios push messages.000000000000.000000000001 to testuser2: ERR=8 Invalid Token')
         self.assertEqual(consumer.logger.warnings[2], '[tests] FAILED ios push messages.000000000000.000000000001 to testuser3: ERR=8 Invalid Token')
+        self.assertEqual(len(processed_tokens), 3)
+
+    @httpretty.activate
+    def test_android_succeed_all_failed_mixed(self):
+        """
+            Given a message with a ack from a testuser0 conversation message
+            And users in conversation have valid device tokens
+            And all users push make android push service to fail
+            When the message is processed
+            And the push message is sent
+            And the sender don't receive the push
+            Then anyone receives the push
+        """
+        from maxbunny.consumers.push import __consumer__
+        from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
+        from maxbunny.tests.mockers.push import ANDROID_TOKENS as tokens
+        from maxbunny.tests.mockers.push import ANDROID_ACK_SUCCESS_ALL_FAILED_MIXED as gcm_response
+
+        http_mock_info()
+        http_mock_get_conversation_tokens(tokens=tokens)
+
+        runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
+        consumer = __consumer__(runner)
+        set_gcm_response(gcm_response)
+
+        processed_tokens = consumer.process(message)
+
+        self.assertEqual(len(consumer.logger.infos), 0)
+        self.assertEqual(len(consumer.logger.warnings), 3)
+
+        self.assertEqual(consumer.logger.warnings[0], '[tests] FAILED android push messages.000000000000.000000000001 to testuser1: Unavailable')
+        self.assertEqual(consumer.logger.warnings[1], '[tests] FAILED android push messages.000000000000.000000000001 to testuser2: Not Registered')
+        self.assertEqual(consumer.logger.warnings[2], '[tests] FAILED android push messages.000000000000.000000000001 to testuser3: Android error message')
         self.assertEqual(len(processed_tokens), 3)
 
     # ===============================
@@ -445,15 +481,15 @@ class PushTests(MaxBunnyTestCase):
         """
         from maxbunny.consumers.push import __consumer__
         from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
-        from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
-        from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS
+        from maxbunny.tests.mockers.push import ANDROID_TOKENS as tokens
+        from maxbunny.tests.mockers.push import ANDROID_ACK_SUCCESS as gcm_response
 
         http_mock_info()
         http_mock_get_conversation_tokens(tokens=tokens)
 
         runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
         consumer = __consumer__(runner)
-        set_apns_response(CONVERSATION_ACK_SUCCESS)
+        set_gcm_response(gcm_response)
 
         processed_tokens = consumer.process(message)
 
@@ -462,3 +498,70 @@ class PushTests(MaxBunnyTestCase):
 
         self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 3/3 push messages.000000000000.000000000001 to testuser1,testuser2,testuser3')
         self.assertEqual(len(processed_tokens), 3)
+
+    @httpretty.activate
+    def test_android_succeed_one_failed(self):
+        """
+            Given a message with a ack from a testuser0 conversation message
+            And users in conversation have valid device tokens
+            And testuser3 make android push service to fail
+            When the message is processed
+            And the push message is sent
+            And the sender don't receive the push
+            And testuser3 don't receive the push
+        """
+        from maxbunny.consumers.push import __consumer__
+        from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
+        from maxbunny.tests.mockers.push import ANDROID_TOKENS as tokens
+        from maxbunny.tests.mockers.push import ANDROID_ACK_SUCCESS_ONE_FAILED as gcm_response
+
+        http_mock_info()
+        http_mock_get_conversation_tokens(tokens=tokens)
+
+        runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
+        consumer = __consumer__(runner)
+        set_gcm_response(gcm_response)
+
+        processed_tokens = consumer.process(message)
+
+        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.warnings), 1)
+
+        self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 2/3 push messages.000000000000.000000000001 to testuser1,testuser2')
+        self.assertEqual(consumer.logger.warnings[0], '[tests] FAILED android push messages.000000000000.000000000001 to testuser3: Android error message')
+        self.assertEqual(len(processed_tokens), 3)
+
+    @httpretty.activate
+    def test_android_ios_mixed_succeed(self):
+        """
+            Given a message with a ack from a testuser0 conversation message
+            And users in conversation have valid device tokens
+            And there are tokens from both ios and android
+            When the message is processed
+            And the push message is sent
+            And the sender don't receive the push
+
+        """
+        from maxbunny.consumers.push import __consumer__
+        from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
+        from maxbunny.tests.mockers.push import IOS_TOKENS
+        from maxbunny.tests.mockers.push import ANDROID_TOKENS
+        from maxbunny.tests.mockers.push import ANDROID_ACK_SUCCESS as gcm_response
+        from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS as apns_response
+
+        http_mock_info()
+        http_mock_get_conversation_tokens(tokens=IOS_TOKENS + ANDROID_TOKENS)
+
+        runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
+        consumer = __consumer__(runner)
+        set_gcm_response(gcm_response)
+        set_apns_response(apns_response)
+
+        processed_tokens = consumer.process(message)
+
+        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.warnings), 0)
+
+        self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 6/6 push messages.000000000000.000000000001 to testuser1,testuser2,testuser3')
+        self.assertEqual(len(processed_tokens), 3)
+        self.assertEqual(len(processed_tokens), 6)
