@@ -10,9 +10,6 @@ from maxbunny.tests import get_storing_logger
 from maxbunny.tests.mock_http import http_mock_info
 from maxbunny.tests.mock_http import http_mock_get_conversation_tokens
 
-from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS
-from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS_ONE_INVALID
-
 from mock import patch
 import httpretty
 
@@ -246,6 +243,33 @@ class PushTests(MaxBunnyTestCase):
             consumer.process,
             message
         )
+
+    @httpretty.activate
+    def test_ios_push_apns_exception(self):
+        """
+            Given a message with a ack from a testuser0 conversation message
+            And users in conversation do not have tokens defined
+            When the message is processed
+            Then the push messages won't be sent
+        """
+        from maxbunny.consumers.push import __consumer__
+        from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
+        from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
+
+        http_mock_info()
+        http_mock_get_conversation_tokens(tokens=tokens)
+
+        runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
+        consumer = __consumer__(runner)
+        set_apns_response(Exception('Push Service Crashed'))
+
+        self.assertRaisesWithMessage(
+            Exception,
+            'Push Service Crashed',
+            consumer.process,
+            message
+        )
+
     # ===============================
     # TESTS FOR SUCCESSFULL SCENARIOS
     # ===============================
@@ -262,6 +286,7 @@ class PushTests(MaxBunnyTestCase):
         from maxbunny.consumers.push import __consumer__
         from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
         from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
+        from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS
 
         http_mock_info()
         http_mock_get_conversation_tokens(tokens=tokens)
@@ -293,6 +318,7 @@ class PushTests(MaxBunnyTestCase):
         from maxbunny.consumers.push import __consumer__
         from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
         from maxbunny.tests.mockers.push import IOS_TOKENS_ONE_SHARED as tokens
+        from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS
 
         http_mock_info()
         http_mock_get_conversation_tokens(tokens=tokens)
@@ -326,6 +352,7 @@ class PushTests(MaxBunnyTestCase):
         from maxbunny.consumers.push import __consumer__
         from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
         from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
+        from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS_ONE_INVALID
 
         http_mock_info()
         http_mock_get_conversation_tokens(tokens=tokens)

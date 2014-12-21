@@ -123,7 +123,10 @@ class MockAPNs(object):
 
     def send(self, *args, **kwargs):
         global apns_response
-        return apns_response
+        if isinstance(apns_response, Exception):
+            raise apns_response
+        else:
+            return apns_response
 
 
 def set_apns_response(response):
