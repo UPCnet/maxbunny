@@ -19,6 +19,14 @@ CONVERSATION_ACK = RabbitpyMockMessage({
     "d": {"text": 'Test message', "id": "000000000001"}
 })
 
+CONVERSATION_PUSHDEBUG_ACK = RabbitpyMockMessage({
+    "routing_key": '{.id}.messages'.format(CONVERSATION_0),
+    "s": "b", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
+    "a": "k", "o": "m",
+    "u": CONVERSATION_0.users[0], "i": "tests",
+    "d": {"text": 'Test message #pushdebug', "id": "000000000001"}
+})
+
 UNKNOWN_OBJECT_CONVERSATION_ACK = RabbitpyMockMessage({
     "routing_key": '{.id}.messages'.format(CONVERSATION_0),
     "s": "b", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
@@ -72,7 +80,17 @@ CONVERSATION_ACK_SUCCESS_ONE_INVALID = APNSMockResponse({
     '0123456789abcdef000000000000000000000000000000000000000000000003': (8, 'Invalid Token')
 })
 
+CONVERSATION_ACK_SUCCESS_ALL_INVALID = APNSMockResponse({
+    '0123456789abcdef000000000000000000000000000000000000000000000001': (8, 'Invalid Token'),
+    '0123456789abcdef000000000000000000000000000000000000000000000002': (8, 'Invalid Token'),
+    '0123456789abcdef000000000000000000000000000000000000000000000003': (8, 'Invalid Token')
+})
 IOS_TOKENS = [
+    {
+        "username": "testuser0",
+        "platform": "iOS",
+        "token": "0123456789abcdef000000000000000000000000000000000000000000000000"
+    },
     {
         "username": "testuser1",
         "platform": "iOS",

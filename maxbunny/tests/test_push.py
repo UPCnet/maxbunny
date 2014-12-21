@@ -270,9 +270,73 @@ class PushTests(MaxBunnyTestCase):
             message
         )
 
+    @httpretty.activate
+    def test_ios_succeed_all_invalid(self):
+        """
+            Given a message with a ack from a testuser0 conversation message
+            And users in conversation have valid device tokens
+            And testuser3 has a invalid device token
+            When the message is processed
+            Then an exception is raised
+            And the push message is sent
+            And the sender don't receive the push
+            And testuser3 don't receive the push
+        """
+        from maxbunny.consumers.push import __consumer__
+        from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
+        from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
+        from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS_ALL_INVALID
+
+        http_mock_info()
+        http_mock_get_conversation_tokens(tokens=tokens)
+
+        runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
+        consumer = __consumer__(runner)
+        set_apns_response(CONVERSATION_ACK_SUCCESS_ALL_INVALID)
+
+        processed_tokens = consumer.process(message)
+
+        self.assertEqual(len(consumer.logger.infos), 0)
+        self.assertEqual(len(consumer.logger.warnings), 3)
+
+        self.assertEqual(consumer.logger.warnings[0], '[tests] FAILED ios push messages.000000000000.000000000001 to testuser1: ERR=8 Invalid Token')
+        self.assertEqual(consumer.logger.warnings[1], '[tests] FAILED ios push messages.000000000000.000000000001 to testuser2: ERR=8 Invalid Token')
+        self.assertEqual(consumer.logger.warnings[2], '[tests] FAILED ios push messages.000000000000.000000000001 to testuser3: ERR=8 Invalid Token')
+        self.assertEqual(len(processed_tokens), 3)
+
     # ===============================
     # TESTS FOR SUCCESSFULL SCENARIOS
     # ===============================
+
+    @httpretty.activate
+    def test_ios_pushdebug(self):
+        """
+            Given a message with a ack from a testuser0 conversation message
+            And the message has the #pushdebug hashtag
+            And users in conversation have valid device tokens
+            When the message is processed
+            Then the push message is sent
+            And the sender don't receive the push
+        """
+        from maxbunny.consumers.push import __consumer__
+        from maxbunny.tests.mockers.push import CONVERSATION_PUSHDEBUG_ACK as message
+        from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
+        from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS
+
+        http_mock_info()
+        http_mock_get_conversation_tokens(tokens=tokens)
+
+        runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
+        consumer = __consumer__(runner)
+        set_apns_response(CONVERSATION_ACK_SUCCESS)
+
+        processed_tokens = consumer.process(message)
+
+        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.warnings), 0)
+
+        self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 4/4 push messages.000000000000.000000000001 to testuser0,testuser1,testuser2,testuser3')
+        self.assertEqual(len(processed_tokens), 4)
 
     @httpretty.activate
     def test_ios_succeed(self):
@@ -368,4 +432,33 @@ class PushTests(MaxBunnyTestCase):
 
         self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 2/3 push messages.000000000000.000000000001 to testuser1,testuser2')
         self.assertEqual(consumer.logger.warnings[0], '[tests] FAILED ios push messages.000000000000.000000000001 to testuser3: ERR=8 Invalid Token')
+        self.assertEqual(len(processed_tokens), 3)
+
+    @httpretty.activate
+    def test_android_succeed(self):
+        """
+            Given a message with a ack from a testuser0 conversation message
+            And users in conversation have valid device tokens
+            When the message is processed
+            Then the push message is sent
+            And the sender don't receive the push
+        """
+        from maxbunny.consumers.push import __consumer__
+        from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
+        from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
+        from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS
+
+        http_mock_info()
+        http_mock_get_conversation_tokens(tokens=tokens)
+
+        runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
+        consumer = __consumer__(runner)
+        set_apns_response(CONVERSATION_ACK_SUCCESS)
+
+        processed_tokens = consumer.process(message)
+
+        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.warnings), 0)
+
+        self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 3/3 push messages.000000000000.000000000001 to testuser1,testuser2,testuser3')
         self.assertEqual(len(processed_tokens), 3)
