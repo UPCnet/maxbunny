@@ -1,5 +1,10 @@
 from maxbunny.tests import MaxBunnyTestCase
+from maxbunny.tests.mock_http import http_mock_info
 from maxbunny import BUNNY_NO_DOMAIN
+from maxclient.rest import MaxClient
+
+import httpretty
+import os
 
 
 class GeneralTests(MaxBunnyTestCase):
@@ -79,3 +84,25 @@ class GeneralTests(MaxBunnyTestCase):
         message_normalized = normalize_message(message)
         self.assertEqual(message_normalized['user']['username'], 'testuser1')
         self.assertEqual(message_normalized['user']['displayname'], 'Test User 1')
+
+    @httpretty.activate
+    def test_reload_clients_from_changed_file(self):
+        from maxbunny.clients import MaxClientsWrapper
+        from maxbunny.tests import TESTS_PATH
+
+        http_mock_info()
+
+        clients = MaxClientsWrapper(
+            '{}/{}'.format(TESTS_PATH, 'instances.ini'),
+            'default',
+            debug=os.environ.get('debug', False),
+            client_class=MaxClient
+        )
+        test_client = clients['tests2']
+        self.assertEqual(test_client, None)
+
+        # Simulate that the instances.ini file has been updated,
+        # by pointing the clients instance to another file to another file
+        clients.instances = '{}/{}'.format(TESTS_PATH, 'instances2.ini'),
+        test_client = clients['tests2']
+        self.assertIsInstance(test_client, MaxClient)

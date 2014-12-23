@@ -13,48 +13,19 @@ TESTS_PATH = os.path.dirname(sys.modules['maxbunny.tests'].__file__)
 RABBIT_URL = "amqp://guest:guest@localhost:5672"
 TEST_VHOST_URL = '{}/tests'.format(RABBIT_URL)
 
-
-def get_storing_logger(self):
-    return MockLogger()
-
-
-class MockRabbitServer(object):
-    def __init__(self, message, mid):
-        self.messages = [(message,)]
-        self.messages[0][0].update({
-            'd': {},
-            'a': 'k',
-            's': 'b'
-        })
-        self.messages[0][0]['d']['id'] = mid
-
-    def get_all(self, queue):
-        return self.messages
-
-
-class MockConnection(object):
-
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def channel(self):
-        return Channel()
-
-
-class Channel(object):
-    pass
-
-    def _write_frames(self, *args, **kwargs):
-        pass
-
-    def _wait_for_confirmation(self, *args, **kwargs):
-        return specification.Basic.Ack()
-
-    def __getattr__(self, name):
-        return 1
+# =============================================================
+#                    Logging mockers
+# =============================================================
 
 
 class MockLogger(object):
+    """
+        Fake logger to easily access logged strings from tests
+
+        It behaves like a regular python logger, but stores logs on
+        temporary files, and has property methods to access the log contents
+        as an array
+    """
     def __init__(self):
         temp_folder = tempfile.gettempdir()
         self.warnings_file = '{}/warnings'.format(temp_folder)
@@ -90,10 +61,75 @@ class MockLogger(object):
     def errors(self):
         return self.readlines(self.errors_file)
 
+
+def get_storing_logger(self):
+    """
+        Returns a mock logger.
+    """
+    return MockLogger()
+
+
+# =============================================================
+#                    RabbitPy Mockers
+# =============================================================
+
+
+class MockConnection(object):
+    """
+        Fakes a rabbitpy.Connection.
+
+        It returns a fake Channel object, and can be told
+        to fail with an exception before the Channel is returned
+    """
+
+    def __init__(self, *args, **kwargs):
+        self.fail = kwargs.pop('fail', 0)
+
+    def channel(self):
+        if self.fail > 0:
+            self.fail -= 1
+            raise Exception('Mocked RabbitMQ Server not found')
+        return Channel()
+
+
+class MockQueue(object):
+    """
+        Fakes a rabbitpy.Queue with no messages.
+    """
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def consume_messages(self):
+        return []
+
+
+class Channel(object):
+    """
+        Fakes a rabbitpy.Channel object.
+    """
+
+    # def _write_frames(self, *args, **kwargs):
+    #     pass
+
+    # def _wait_for_confirmation(self, *args, **kwargs):
+    #     return specification.Basic.Ack()
+
+    # def __getattr__(self, name):
+    #     return 1
+
+
+# =============================================================
+#                    smtlip Mockers
+# =============================================================
+
 sent = []
 
 
 class MockEmailMessage(object):
+    """
+        Fakes an smtplib.Message
+    """
     def __init__(self, from_address, to_address, fullmessage):
         self.from_address = from_address
         self.to_address = to_address
@@ -101,27 +137,54 @@ class MockEmailMessage(object):
 
 
 class MockSMTP(object):
+    """
+        Fakes an stmplib.SMTP Server.
+    """
     def __init__(self, address):
         self.address = address
 
     def sendmail(self, from_address, to_address, fullmessage):
+        """
+            Stores mail sent in a global var.
+
+            Sent messages can be accessed by importing maxbunny.tests.sent.
+        """
         global sent
         sent.append(MockEmailMessage(from_address, to_address, fullmessage))
         return []
+
+# =============================================================
+#                    APNS Mockers
+# =============================================================
 
 apns_response = {}
 
 
 class MockAPNSSession(object):
+    """
+        Mocks an apnsclient.Session object.
+    """
     def get_connection(*args, **kwargs):
         return True
 
 
 class MockAPNs(object):
+    """
+        Mocks an apnsclient.APNs Server object.
+
+        When a push messages sent trough this mock, it
+        responds with a custom-defined response particular to
+        each test
+    """
     def __init__(self, *args, **kwargs):
         pass
 
     def send(self, *args, **kwargs):
+        """
+            Returns or raises an exception, as defined
+            on apns_response global var, that must be
+            set just before using this method
+        """
         global apns_response
         if isinstance(apns_response, Exception):
             raise apns_response
@@ -130,18 +193,37 @@ class MockAPNs(object):
 
 
 def set_apns_response(response):
+    """
+        Sets the response that will be used on MockAPNs.send calls.
+    """
     global apns_response
     apns_response = response
 
+
+# =============================================================
+#                    gcmclient Mockers
+# =============================================================
 
 gcm_response = {}
 
 
 class MockGCM(object):
     def __init__(self, *args, **kwargs):
+        """
+            Mocks an gcmclient.GCM Server object.
+
+            When a push messages sent trough this mock, it
+            responds with a custom-defined response particular to
+            each test
+        """
         pass
 
     def send(self, *args, **kwargs):
+        """
+            Returns or raises an exception, as defined
+            on gcm_response global var, that must be
+            set just before using this method
+        """
         global gcm_response
         if isinstance(gcm_response, Exception):
             raise gcm_response
@@ -150,17 +232,32 @@ class MockGCM(object):
 
 
 def set_gcm_response(response):
+    """
+        Sets the response that will be used on MockAPNs.send calls.
+    """
     global gcm_response
     gcm_response = response
 
 
+# =============================================================
+#                    Maxbunny Mockers
+# =============================================================
+
 class MockRunner(object):
+    """
+        Mocks a maxbunny.runner.BunnyRunner object.
+
+        This is provided to be able to test features of the main
+        consumer algorithm and the particular consumer scenarios,
+        without all the multiprocessing and process spawining stuff
+        of the real BunnyRunner
+    """
     rabbitmq_server = TEST_VHOST_URL
     workers_ready = None
 
-    def __init__(self, consumer_name, ini_file, instances_ini, cloudapis_ini='nocloudapis.ini'):
+    def __init__(self, consumer_name, ini_file, instances_ini, cloudapis_ini='nocloudapis.ini', logging_folder=None):
         self.debug = consumer_name
-
+        self.logging_folder = logging_folder
         self.config = ConfigParser.ConfigParser()
         self.config.read('{}/{}'.format(TESTS_PATH, ini_file))
 
@@ -176,7 +273,14 @@ class MockRunner(object):
 
 
 class MaxBunnyTestCase(unittest.TestCase):
+    """
+        Provides common features for all maxbunny tests.
+    """
     def assertRaisesWithMessage(self, exc_type, msg, func, *args, **kwargs):
+        """
+            Asserts if func raises with the expect exc_type and msg.
+            Fails when any of both don't match.
+        """
         try:
             func(*args, **kwargs)
         except Exception as inst:
@@ -186,12 +290,3 @@ class MaxBunnyTestCase(unittest.TestCase):
             # Meant to be raised in tests that test exceptions,
             # if the exception does not raise
             self.assertEqual('', 'Did not raise')   # pragma: no cover
-
-
-def is_rabbit_active():
-    active = False
-    try:
-        socket.socket().bind(('localhost', 5672))
-    except:
-        active = True
-    return active

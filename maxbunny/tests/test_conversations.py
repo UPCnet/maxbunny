@@ -2,11 +2,8 @@
 from maxbunny.consumer import BunnyMessageCancel
 
 from maxbunny.tests import MockRunner
-from maxbunny.tests import MockConnection
-from maxbunny.tests import MockRabbitServer
 from maxbunny.tests import MaxBunnyTestCase
 from maxbunny.tests import get_storing_logger
-from maxbunny.tests import is_rabbit_active
 from maxbunny.tests import TEST_VHOST_URL
 from maxbunny.tests.mock_http import http_mock_info
 from maxbunny.tests.mock_http import http_mock_post_user_message
@@ -16,20 +13,7 @@ from maxbunny.tests.mockers.conversations import CONVERSATION_0
 from maxcarrot import RabbitClient
 from mock import patch
 import httpretty
-import warnings
 from time import sleep
-
-MOCK_RABBIT = not is_rabbit_active()
-if MOCK_RABBIT:
-    warnings.warn("""
-
-        ************************ WARNING ********************
-
-        Didn't found a running RabbitMQ Instance.
-        All queue-related operations on tests will be mocked.
-
-        *****************************************************
-        """)
 
 
 class ConversationTests(MaxBunnyTestCase):
@@ -37,33 +21,25 @@ class ConversationTests(MaxBunnyTestCase):
         self.log_patch = patch('maxbunny.consumer.BunnyConsumer.configure_logger', new=get_storing_logger)
         self.log_patch.start()
 
-        if MOCK_RABBIT:
-            self.rabbit_patch = patch('rabbitpy.Connection', new=MockConnection)
-            self.rabbit_patch.start()
-
     def tearDown(self):
         self.log_patch.stop()
-        if MOCK_RABBIT:
-            self.rabbit_patch.stop()
-        else:
-            if hasattr(self, 'server'):
-                self.server.delete_user('testuser1')
-                self.server.get_all('push')
-                self.server.disconnect()
+        try:
+            self.server.delete_user('testuser1')
+            self.server.get_all('push')
+            self.server.disconnect()
+        except:
+            pass  # pragma: no-cover
 
         # Make sure httpretty is disabled
         httpretty.disable()
         httpretty.reset()
 
     def set_server(self, message, mid):
-        if MOCK_RABBIT:
-            self.server = MockRabbitServer(message, mid)
-        else:
-            self.server = RabbitClient(TEST_VHOST_URL)
-            self.server.management.cleanup(delete_all=True)
-            self.server.declare()
-            self.server.create_users(CONVERSATION_0.users)
-            self.server.conversations.create(CONVERSATION_0.id, users=CONVERSATION_0.users)
+        self.server = RabbitClient(TEST_VHOST_URL)
+        self.server.management.cleanup(delete_all=True)
+        self.server.declare()
+        self.server.create_users(CONVERSATION_0.users)
+        self.server.conversations.create(CONVERSATION_0.id, users=CONVERSATION_0.users)
 
     # ===========================
     # TESTS FOR FAILING SCENARIOS

@@ -2,6 +2,8 @@ from maxbunny.consumer import BunnyConsumer
 from maxbunny.consumer import BunnyMessageCancel
 from maxbunny.consumer import BunnyMessageRequeue
 from maxbunny.tests import get_storing_logger
+from maxbunny.tests import MockConnection
+from maxbunny.tests import MockQueue
 from maxbunny.tests import MaxBunnyTestCase
 from maxbunny.tests import MockRunner
 from maxbunny.tests import MockSMTP
@@ -11,20 +13,29 @@ from threading import Thread
 
 from mock import patch
 from time import sleep
+from functools import partial
+
+import os
 
 
 class TestConsumer(BunnyConsumer):
+    name = 'testconsumer'
     queue = 'tests'
 
-    def __init__(self, *args, **kwargs):
-        self.exception = kwargs.pop('exception', None)
-        super(TestConsumer, self).__init__(*args, **kwargs)
+    def __init__(self, runner, return_value=None, **kwargs):
+        self.return_value = return_value
+        self.second_return_value = kwargs.pop('after', self.return_value)
+        self.executed = False
+        super(TestConsumer, self).__init__(runner, **kwargs)
 
     def process(self, message):
-        if self.exception:
-            raise self.exception
+        return_value = self.return_value if not self.executed else self.second_return_value
+        self.executed = True
+
+        if isinstance(return_value, Exception):
+            raise return_value
         else:
-            return None
+            return return_value
 
     def remote(self):
         conn = self.channels[self.wid]['connection']
@@ -38,6 +49,51 @@ class ConsumerThread(Thread):
 
     def run(self):
         self.consumer.consume(nowait=True)
+
+
+class ConsumerTestsWithLogging(MaxBunnyTestCase):
+    def setUp(self):
+        try:
+            os.remove('/tmp/testconsumer.log')
+        except:
+            pass  # pragma: no-cover
+
+    def TearDown(self):
+        pass  # pragma: no-cover
+
+    def test_logger_configuration(self):
+        runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini', logging_folder='/tmp')
+        consumer = TestConsumer(runner)
+        consumer.logger.info('Test log line')
+
+        self.assertEqual(consumer.logger.name, 'testconsumer')
+        self.assertEqual(consumer.logger.handlers[0].baseFilename, '/tmp/testconsumer.log')
+        self.assertIn('Test log line', open('/tmp/testconsumer.log').read())
+
+
+class ConsumerTestsWithRabbitMQMocked(MaxBunnyTestCase):
+    def setUp(self):
+        self.log_patch = patch('maxbunny.consumer.BunnyConsumer.configure_logger', new=get_storing_logger)
+        self.log_patch.start()
+
+        self.rabbit_patch = patch('rabbitpy.Connection', new=partial(MockConnection, fail=2))
+        self.rabbit_patch.start()
+
+        self.rabbit_queue_patch = patch('rabbitpy.Queue', MockQueue)
+        self.rabbit_queue_patch.start()
+
+    def tearDown(self):
+        self.log_patch.stop()
+        self.rabbit_patch.stop()
+        self.rabbit_queue_patch.stop()
+
+    def test_rabbitm_start_disconnected_reconnects(self):
+        runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
+        consumer = TestConsumer(runner)
+        consumer.consume(nowait=True)
+        self.assertEqual(consumer.logger.infos[0], 'Waiting for rabbitmq...')
+        self.assertEqual(consumer.logger.infos[1], 'Connection with RabbitMQ recovered!')
+        self.assertEqual(consumer.logger.infos[2], 'Worker MainProcess ready')
 
 
 class ConsumerTests(MaxBunnyTestCase):
@@ -84,7 +140,7 @@ class ConsumerTests(MaxBunnyTestCase):
             And the channel remains Open
         """
         runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
-        consumer = TestConsumer(runner, exception=BunnyMessageCancel('Testing message drop'))
+        consumer = TestConsumer(runner, BunnyMessageCancel('Testing message drop'))
         self.process = ConsumerThread(consumer)
 
         self.server.send('', '', routing_key='tests')
@@ -116,7 +172,7 @@ class ConsumerTests(MaxBunnyTestCase):
             And a mail notification is sent
         """
         runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
-        consumer = TestConsumer(runner, exception=BunnyMessageRequeue('Test requeueing'))
+        consumer = TestConsumer(runner, BunnyMessageRequeue('Test requeueing'))
         self.process = ConsumerThread(consumer)
 
         self.server.send('', '{}', routing_key='tests')
@@ -148,7 +204,7 @@ class ConsumerTests(MaxBunnyTestCase):
             And no mail notification is sent
         """
         runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
-        consumer = TestConsumer(runner, exception=BunnyMessageCancel('Testing message drop', notify=False))
+        consumer = TestConsumer(runner, BunnyMessageCancel('Testing message drop', notify=False))
         self.process = ConsumerThread(consumer)
 
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
@@ -180,7 +236,7 @@ class ConsumerTests(MaxBunnyTestCase):
             And a mail notification is sent
         """
         runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
-        consumer = TestConsumer(runner, exception=BunnyMessageCancel('Testing message drop', notify=True))
+        consumer = TestConsumer(runner, BunnyMessageCancel('Testing message drop', notify=True))
         self.process = ConsumerThread(consumer)
 
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
@@ -213,7 +269,7 @@ class ConsumerTests(MaxBunnyTestCase):
             And a mail notification is not sent
         """
         runner = MockRunner('tests', 'maxbunny-norecipients.ini', 'instances.ini')
-        consumer = TestConsumer(runner, exception=BunnyMessageCancel('Testing message drop', notify=True))
+        consumer = TestConsumer(runner, BunnyMessageCancel('Testing message drop', notify=True))
         self.process = ConsumerThread(consumer)
 
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
@@ -246,7 +302,7 @@ class ConsumerTests(MaxBunnyTestCase):
         """
         from maxclient.client import RequestError
         runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
-        consumer = TestConsumer(runner, exception=RequestError(401, 'Unauthorized'))
+        consumer = TestConsumer(runner, RequestError(401, 'Unauthorized'))
         self.process = ConsumerThread(consumer)
 
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
@@ -279,7 +335,7 @@ class ConsumerTests(MaxBunnyTestCase):
         """
         from maxcarrot.message import MaxCarrotParsingError
         runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
-        consumer = TestConsumer(runner, exception=MaxCarrotParsingError())
+        consumer = TestConsumer(runner, MaxCarrotParsingError())
         self.process = ConsumerThread(consumer)
 
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
@@ -312,7 +368,7 @@ class ConsumerTests(MaxBunnyTestCase):
         """
         from maxclient.client import RequestError
         runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
-        consumer = TestConsumer(runner, exception=RequestError(500, 'Internal Server Error'))
+        consumer = TestConsumer(runner, RequestError(500, 'Internal Server Error'))
         self.process = ConsumerThread(consumer)
 
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
@@ -343,9 +399,10 @@ class ConsumerTests(MaxBunnyTestCase):
             And a warning is logged
             And the channel remains Open
             And a mail notification is sent
+            And the id of the queued message is stored
         """
         runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
-        consumer = TestConsumer(runner, exception=BunnyMessageRequeue('Test requeueing'))
+        consumer = TestConsumer(runner, BunnyMessageRequeue('Test requeueing'))
         self.process = ConsumerThread(consumer)
 
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
@@ -366,6 +423,81 @@ class ConsumerTests(MaxBunnyTestCase):
 
         queued = self.server.get_all('tests')
         self.assertEqual(len(queued), 1)
+        self.assertEqual(len(consumer.requeued), 1)
+        self.assertIn('0123456789', consumer.requeued)
+
+    def test_consumer_requeues_on_requeue_exception_unqueues_after(self):
+        """
+            Given a message with UUID field
+            When the consumer loop processes the message
+            And the first time the message triggers a Requeue exception
+            And the second time the message is succesfully processed
+            Then the message is unqueued the second time
+            And a warning is logged
+            And the channel remains Open
+            And a mail notification is sent
+            And the id is removed from queued ones
+        """
+        runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
+        consumer = TestConsumer(runner, BunnyMessageRequeue('Test requeueing'), after=None)
+        self.process = ConsumerThread(consumer)
+
+        self.server.send('', '{"g": "0123456789"}', routing_key='tests')
+        self.process.start()
+
+        sleep(0.3)  # give a minum time to mail to be sent
+        from maxbunny.tests import sent  # MUST import sent here to get current sent mails,
+
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.warnings), 1)
+        self.assertTrue(self.process.isAlive())
+        self.assertEqual(consumer.logger.warnings[0], 'Message 0123456789 reueued, reason: Test requeueing')
+
+        self.server.management.force_close(consumer.remote())
+
+        sleep(0.2)  # Leave a minimum time to rabbitmq to release messages
+
+        queued = self.server.get_all('tests')
+        self.assertEqual(len(queued), 0)
+        self.assertEqual(len(consumer.requeued), 0)
+
+    def test_consumer_requeues_on_requeue_exception_drops_after(self):
+        """
+            Given a message with UUID field
+            When the consumer loop processes the message
+            And the first time the message triggers a Requeue exception
+            And the second time the message is triggers a Cancel exception
+            Then the message is unqueued the second time
+            And a warning is logged
+            And the channel remains Open
+            And a mail notification is sent
+            And the id is removed from queued ones
+        """
+        runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
+        consumer = TestConsumer(runner, BunnyMessageRequeue('Test requeueing'), after=BunnyMessageCancel('Testing message drop'))
+        self.process = ConsumerThread(consumer)
+
+        self.server.send('', '{"g": "0123456789"}', routing_key='tests')
+        self.process.start()
+
+        sleep(0.3)  # give a minum time to mail to be sent
+        from maxbunny.tests import sent  # MUST import sent here to get current sent mails,
+
+        self.assertEqual(len(sent), 2)
+        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.warnings), 2)
+        self.assertTrue(self.process.isAlive())
+        self.assertEqual(consumer.logger.warnings[0], 'Message 0123456789 reueued, reason: Test requeueing')
+        self.assertEqual(consumer.logger.warnings[1], 'Message dropped, reason: Testing message drop')
+
+        self.server.management.force_close(consumer.remote())
+
+        sleep(0.2)  # Leave a minimum time to rabbitmq to release messages
+
+        queued = self.server.get_all('tests')
+        self.assertEqual(len(queued), 0)
+        self.assertEqual(len(consumer.requeued), 0)
 
     def test_consumer_requeues_on_unknown_exception(self):
         """
@@ -378,7 +510,7 @@ class ConsumerTests(MaxBunnyTestCase):
             And a mail notification is sent
         """
         runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
-        consumer = TestConsumer(runner, exception=Exception('Unknown exception'))
+        consumer = TestConsumer(runner, Exception('Unknown exception'))
         self.process = ConsumerThread(consumer)
 
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')

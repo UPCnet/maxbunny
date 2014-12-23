@@ -28,6 +28,38 @@ CONVERSATION_PUSHDEBUG_ACK = RabbitpyMockMessage({
     "d": {"text": 'Test message #pushdebug', "id": "000000000001"}
 })
 
+CONVERSATION_CREATION_ACK = RabbitpyMockMessage({
+    "routing_key": '{.id}.messages'.format(CONVERSATION_0),
+    "s": "b", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
+    "a": "a", "o": "c",
+    "u": CONVERSATION_0.users[0], "i": "tests",
+    "d": {"text": 'Test message', "id": "000000000001"}
+})
+
+BAD_ID_CONVERSATION_CREATION_ACK = RabbitpyMockMessage({
+    "routing_key": '.messages',
+    "s": "b", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
+    "a": "a", "o": "c",
+    "u": CONVERSATION_0.users[0], "i": "tests",
+    "d": {"text": 'Test message', "id": "000000000001"}
+})
+
+ACTIVITY_ACK = RabbitpyMockMessage({
+    "routing_key": '{.id}.messages'.format(CONVERSATION_0),
+    "s": "b", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
+    "a": "a", "o": "a",
+    "u": CONVERSATION_0.users[0], "i": "tests",
+    "d": {"text": 'Test message', "id": "000000000001"}
+})
+
+BAD_ID_ACTIVITY_ACK = RabbitpyMockMessage({
+    "routing_key": ''.format(CONVERSATION_0),
+    "s": "b", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
+    "a": "a", "o": "a",
+    "u": CONVERSATION_0.users[0], "i": "tests",
+    "d": {"text": 'Test message', "id": "000000000001"}
+})
+
 UNKNOWN_OBJECT_CONVERSATION_ACK = RabbitpyMockMessage({
     "routing_key": '{.id}.messages'.format(CONVERSATION_0),
     "s": "b", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
@@ -48,14 +80,6 @@ EMPTY_USER_CONVERSATION_ACK = RabbitpyMockMessage({
     "s": "b", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
     "a": "k", "o": "?",
     "u": {}, "i": "tests",
-    "d": {"text": 'Test message', "id": "000000000001"}
-})
-
-NOMATCH_ROUTING_KEY_CONVERSATION_ACK = RabbitpyMockMessage({
-    "routing_key": '{.id}'.format(CONVERSATION_0),
-    "s": "b", "v": 4.0, "g": "01234", "p": "2014-01-01T00:00:00",
-    "a": "k", "o": "m",
-    "u": CONVERSATION_0.users[0], "i": "tests",
     "d": {"text": 'Test message', "id": "000000000001"}
 })
 

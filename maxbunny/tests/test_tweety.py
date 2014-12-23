@@ -80,6 +80,7 @@ class TweetyTests(MaxBunnyTestCase):
             message
         )
 
+        self.assertEqual(consumer.users, {'tests': [{}]})
         self.assertEqual(len(consumer.logger.infos), 1)
         self.assertEqual(len(consumer.logger.warnings), 0)
 

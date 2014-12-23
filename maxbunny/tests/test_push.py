@@ -11,6 +11,7 @@ from maxbunny.tests import MaxBunnyTestCase
 from maxbunny.tests import get_storing_logger
 from maxbunny.tests.mock_http import http_mock_info
 from maxbunny.tests.mock_http import http_mock_get_conversation_tokens
+from maxbunny.tests.mock_http import http_mock_get_context_tokens
 
 from mock import patch
 import httpretty
@@ -147,33 +148,6 @@ class PushTests(MaxBunnyTestCase):
         self.assertEqual(len(consumer.logger.warnings), 0)
 
     @httpretty.activate
-    def test_bad_message_routing_key(self):
-        """
-            Given a message with an routing_key
-            And that routing_key doesn't match expected patterns
-            When the message is processed
-            Then an exception is raised
-            And the push message is not sent
-        """
-        from maxbunny.consumers.push import __consumer__
-        from maxbunny.tests.mockers.push import NOMATCH_ROUTING_KEY_CONVERSATION_ACK as message
-
-        http_mock_info()
-
-        runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
-        consumer = __consumer__(runner)
-
-        self.assertRaisesWithMessage(
-            BunnyMessageCancel,
-            'The received message is not from a valid conversation',
-            consumer.process,
-            message
-        )
-
-        self.assertEqual(len(consumer.logger.infos), 0)
-        self.assertEqual(len(consumer.logger.warnings), 0)
-
-    @httpretty.activate
     def test_bad_message_id_on_routing_key(self):
         """
             Given a message with an routing_key
@@ -256,7 +230,8 @@ class PushTests(MaxBunnyTestCase):
             Given a message with a ack from a testuser0 conversation message
             And users in conversation do not have tokens defined
             When the message is processed
-            Then the push messages won't be sent
+            Then an exception is raised
+            And the push message is not sent
         """
         from maxbunny.consumers.push import __consumer__
         from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
@@ -339,6 +314,60 @@ class PushTests(MaxBunnyTestCase):
         self.assertEqual(consumer.logger.warnings[1], '[tests] FAILED android push messages.000000000000.000000000001 to testuser2: Not Registered')
         self.assertEqual(consumer.logger.warnings[2], '[tests] FAILED android push messages.000000000000.000000000001 to testuser3: Android error message')
         self.assertEqual(len(processed_tokens), 3)
+
+    @httpretty.activate
+    def test_ios_failed_conversation_creation_ack(self):
+        """
+            Given a message with a ack from a testuser0 conversation creation
+            And the conversation id is missing
+            And users in conversation have valid device tokens
+            When the message is processed
+            Then an exception is raised
+            And the push message is not sent
+        """
+        from maxbunny.consumers.push import __consumer__
+        from maxbunny.tests.mockers.push import BAD_ID_CONVERSATION_CREATION_ACK as message
+        from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
+
+        http_mock_info()
+        http_mock_get_conversation_tokens(tokens=tokens)
+
+        runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
+        consumer = __consumer__(runner)
+
+        self.assertRaisesWithMessage(
+            BunnyMessageCancel,
+            'The received message is not from a valid conversation',
+            consumer.process,
+            message
+        )
+
+    @httpretty.activate
+    def test_ios_failed_activity_creation_ack(self):
+        """
+            Given a message with a ack from a testuser0 post to a context
+            And the context id is missing
+            And users in conversation have valid device tokens
+            When the message is processed
+            Then the push message is sent
+            And the sender don't receive the push
+        """
+        from maxbunny.consumers.push import __consumer__
+        from maxbunny.tests.mockers.push import BAD_ID_ACTIVITY_ACK as message
+        from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
+
+        http_mock_info()
+        http_mock_get_context_tokens(tokens=tokens)
+
+        runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
+        consumer = __consumer__(runner)
+
+        self.assertRaisesWithMessage(
+            BunnyMessageCancel,
+            'The received message is not from a valid context',
+            consumer.process,
+            message
+        )
 
     # ===============================
     # TESTS FOR SUCCESSFULL SCENARIOS
@@ -563,5 +592,62 @@ class PushTests(MaxBunnyTestCase):
         self.assertEqual(len(consumer.logger.warnings), 0)
 
         self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 6/6 push messages.000000000000.000000000001 to testuser1,testuser2,testuser3')
-        self.assertEqual(len(processed_tokens), 3)
         self.assertEqual(len(processed_tokens), 6)
+
+    @httpretty.activate
+    def test_ios_succeed_conversation_creation(self):
+        """
+            Given a message with a ack from a testuser0 conversation creation
+            And users in conversation have valid device tokens
+            When the message is processed
+            Then the push message is sent
+            And the sender don't receive the push
+        """
+        from maxbunny.consumers.push import __consumer__
+        from maxbunny.tests.mockers.push import CONVERSATION_CREATION_ACK as message
+        from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
+        from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS
+
+        http_mock_info()
+        http_mock_get_conversation_tokens(tokens=tokens)
+
+        runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
+        consumer = __consumer__(runner)
+        set_apns_response(CONVERSATION_ACK_SUCCESS)
+
+        processed_tokens = consumer.process(message)
+
+        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.warnings), 0)
+
+        self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 3/3 push messages.000000000000.000000000001 to testuser1,testuser2,testuser3')
+        self.assertEqual(len(processed_tokens), 3)
+
+    @httpretty.activate
+    def test_ios_succeed_activity_creation(self):
+        """
+            Given a message with a ack from a testuser0 post to a context
+            And users in conversation have valid device tokens
+            When the message is processed
+            Then the push message is sent
+            And the sender don't receive the push
+        """
+        from maxbunny.consumers.push import __consumer__
+        from maxbunny.tests.mockers.push import ACTIVITY_ACK as message
+        from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
+        from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS
+
+        http_mock_info()
+        http_mock_get_context_tokens(tokens=tokens)
+
+        runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
+        consumer = __consumer__(runner)
+        set_apns_response(CONVERSATION_ACK_SUCCESS)
+
+        processed_tokens = consumer.process(message)
+
+        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.warnings), 0)
+
+        self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 3/3 push activity.000000000000.000000000001 to testuser1,testuser2,testuser3')
+        self.assertEqual(len(processed_tokens), 3)
