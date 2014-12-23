@@ -58,11 +58,6 @@ class MaxClientsWrapper(object):
 
         return failed
 
-    def get_client_language(self, key):
-        client_domain_key = self.default_domain if key is BUNNY_NO_DOMAIN else key
-        maxclient = self.maxclients.get(client_domain_key, None)
-        return maxclient.metadata['language']
-
     def __getitem__(self, key):
         """
             Retrieves a specific maxserver client. Returns None if not found

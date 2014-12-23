@@ -301,7 +301,11 @@ class BunnyConsumer(object):
     def process(self, message):
         """
             Real processing code for consumers live here. Consumers implementing
-            BunnyConsumer, receive a rabbitpy.Message and sould return one of
-            BUNNY_OK, BUNNY_CANCEL or BUNNY_REQUEUE result codes
+            BunnyConsumer, receive a rabbitpy.Message and sould raise:
+
+                * BunnyMessageCancel('reason') if the message has to be dropped
+                * BunnyMessageRequeue('reason') if the message has to be requeued
+
+            Return None on successfull processing
         """
         pass  # pragma: no cover
