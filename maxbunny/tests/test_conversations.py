@@ -23,12 +23,9 @@ class ConversationTests(MaxBunnyTestCase):
 
     def tearDown(self):
         self.log_patch.stop()
-        try:
-            self.server.delete_user('testuser1')
-            self.server.get_all('push')
-            self.server.disconnect()
-        except:
-            pass  # pragma: no-cover
+        self.server.delete_user('testuser1')
+        self.server.get_all('push')
+        self.server.disconnect()
 
         # Make sure httpretty is disabled
         httpretty.disable()

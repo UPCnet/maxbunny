@@ -52,14 +52,9 @@ class ConsumerThread(Thread):
 
 
 class ConsumerTestsWithLogging(MaxBunnyTestCase):
-    def setUp(self):
-        try:
-            os.remove('/tmp/testconsumer.log')
-        except:
-            pass  # pragma: no-cover
 
-    def TearDown(self):
-        pass  # pragma: no-cover
+    def tearDown(self):
+        os.remove('/tmp/testconsumer.log')
 
     def test_logger_configuration(self):
         runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini', logging_folder='/tmp')

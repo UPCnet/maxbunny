@@ -228,10 +228,9 @@ class PushTests(MaxBunnyTestCase):
     def test_ios_push_apns_exception(self):
         """
             Given a message with a ack from a testuser0 conversation message
-            And users in conversation do not have tokens defined
+            And the apnsclient Library raises an exception
             When the message is processed
             Then an exception is raised
-            And the push message is not sent
         """
         from maxbunny.consumers.push import __consumer__
         from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
@@ -243,6 +242,32 @@ class PushTests(MaxBunnyTestCase):
         runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
         consumer = __consumer__(runner)
         set_apns_response(Exception('Push Service Crashed'))
+
+        self.assertRaisesWithMessage(
+            Exception,
+            'Push Service Crashed',
+            consumer.process,
+            message
+        )
+
+    @httpretty.activate
+    def test_android_push_apns_exception(self):
+        """
+            Given a message with a ack from a testuser0 conversation message
+            And the ios Library raises an exception
+            When the message is processed
+            Then an exception is raised
+        """
+        from maxbunny.consumers.push import __consumer__
+        from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
+        from maxbunny.tests.mockers.push import ANDROID_TOKENS as tokens
+
+        http_mock_info()
+        http_mock_get_conversation_tokens(tokens=tokens)
+
+        runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
+        consumer = __consumer__(runner)
+        set_gcm_response(Exception('Push Service Crashed'))
 
         self.assertRaisesWithMessage(
             Exception,
