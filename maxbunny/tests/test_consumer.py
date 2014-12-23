@@ -85,7 +85,10 @@ class ConsumerTestsWithRabbitMQMocked(MaxBunnyTestCase):
     def test_rabbitm_start_disconnected_reconnects(self):
         runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
         consumer = TestConsumer(runner)
-        consumer.consume(nowait=True)
+        self.process = ConsumerThread(consumer)
+        self.process.start()
+        self.process.join()
+
         self.assertEqual(consumer.logger.infos[0], 'Waiting for rabbitmq...')
         self.assertEqual(consumer.logger.infos[1], 'Connection with RabbitMQ recovered!')
         self.assertEqual(consumer.logger.infos[2], 'Worker MainProcess ready')

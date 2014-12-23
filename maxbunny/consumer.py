@@ -122,13 +122,6 @@ class BunnyConsumer(object):
             self.workers.append(worker)
             worker.start()
 
-    def stop_all(self):
-        """
-            Stops all consumer's workers_ready
-        """
-        for channel in self.channels:
-            channel['connection'].close()
-
     def stop(self):
         """
             Stops the current process worker connection
