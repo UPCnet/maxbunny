@@ -102,7 +102,12 @@ class BunnyRunner(object):
         """
 
         for consumer_id, consumer in self.consumers.items():
-            consumer.start()
+            for worker_id in range(consumer.workers_count):
+                worker = multiprocessing.Process(
+                    name='consumers.{}.{}'.format(consumer.name, worker_id + 1),
+                    target=consumer.consume)
+                consumer.workers.append(worker)
+                consumer.start()
 
         self.workers_ready.set()
 

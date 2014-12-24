@@ -1,21 +1,22 @@
 # -*- coding: utf-8 -*-
-from rabbitpy.exceptions import ConnectionResetException
-from rabbitpy.exceptions import AMQPNotFound
-from rabbitpy.exceptions import AMQPConnectionForced
-
-from maxclient.rest import RequestError
-from maxbunny.utils import get_message_uuid, send_requeue_traceback, send_drop_traceback
+from maxbunny.utils import get_message_uuid
+from maxbunny.utils import send_drop_traceback
+from maxbunny.utils import send_requeue_traceback
 from maxcarrot.message import MaxCarrotParsingError
+from maxclient.rest import RequestError
 
 from logging.handlers import WatchedFileHandler
+from rabbitpy.exceptions import AMQPConnectionForced
+from rabbitpy.exceptions import AMQPNotFound
+from rabbitpy.exceptions import ConnectionResetException
 
 import logging
 import multiprocessing
 import rabbitpy
 import re
-import traceback
-import time
 import thread
+import time
+import traceback
 
 
 class BunnyMessageRequeue(Exception):
@@ -111,17 +112,6 @@ class BunnyConsumer(object):
 
         return logger
 
-    def start(self):
-        """
-            Spawn required workers for this consumer
-        """
-        for worker_id in range(self.workers_count):
-            worker = multiprocessing.Process(
-                name='consumers.{}.{}'.format(self.name, worker_id + 1),
-                target=self.consume)
-            self.workers.append(worker)
-            worker.start()
-
     def stop(self):
         """
             Stops the current process worker connection
@@ -133,8 +123,8 @@ class BunnyConsumer(object):
         """
             Restarts a workers without exiting its process
         """
-        self.root_logger.error(message)
-        self.logger.warning('Exiting Worker {}'.format(self.wid))
+        self.logger.warning(message)
+        self.logger.warning('Restarting Worker {}'.format(self.wid))
         self.reset_connection()
         self.consume(nowait=True)
 
@@ -176,19 +166,21 @@ class BunnyConsumer(object):
             self.logger.warning('User Canceled')
             self.stop()
         except AMQPNotFound as exc:
-            self.logger.warning('AMQPNotFound: {}'.format(exc.message.reply_text))
+            self.logger.warning('AMQPNotFound: {}'.format(str(exc.message)))
         except ConnectionResetException:
             self.restart_worker('Rabbit Connection Reset')
         except AMQPConnectionForced as exc:
             self.logger.error(exc.message)
         except thread.error:
-            self.logger.error('TERM Signal Received. Dying ...')
+            self.logger.error('Received TERM Signal. Exiting {} ...'.format(self.wid))
         except AttributeError as exc:
             self.terminate(exc)
         except AssertionError as exc:
             self.terminate(exc)
         except Exception as exc:
-            self.restart_worker('{}: {}'.format(exc.__class__, exc.message))
+            self.restart_worker('{}: {}'.format(exc.__class__.__name__, exc.message))
+        else:
+            self.logger.info('Exiting Worker {}'.format(self.wid))
 
     def terminate(self, exc):
         """
@@ -201,9 +193,9 @@ class BunnyConsumer(object):
         failed_child_check = 'child process' in exc.message
 
         if failed_terminate or failed_child_check:
-            self.logger.error('Received TERM Signal. Killing {} ...'.format(self.wid))
+            self.logger.error('Received TERM Signal. Exiting {} ...'.format(self.wid))
         else:
-            self.restart_worker('{}: {}'.format(exc.__class__, exc.message))
+            self.restart_worker('{}: {}'.format(exc.__class__.__name__, exc.message))
 
     def ack(self, message):
         """
