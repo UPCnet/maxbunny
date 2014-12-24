@@ -9,12 +9,15 @@ from maxbunny.tests import MockRunner
 from maxbunny.tests import MockSMTP
 from maxbunny.tests import TEST_VHOST_URL
 from maxcarrot import RabbitClient
-from threading import Thread
+from threading import Thread, Event
+
+from rabbitpy.exceptions import AMQPNotFound
+from rabbitpy.exceptions import ConnectionResetException
 
 from mock import patch
 from time import sleep
 from functools import partial
-
+import thread
 import os
 
 
@@ -43,12 +46,13 @@ class TestConsumer(BunnyConsumer):
 
 
 class ConsumerThread(Thread):
-    def __init__(self, consumer):
+    def __init__(self, consumer, nowait=True):
         Thread.__init__(self)
         self.consumer = consumer
+        self.nowait = nowait
 
     def run(self):
-        self.consumer.consume(nowait=True)
+        self.consumer.consume(nowait=self.nowait)
 
 
 class ConsumerTestsWithLogging(MaxBunnyTestCase):
@@ -70,19 +74,22 @@ class ConsumerTestsWithRabbitMQMocked(MaxBunnyTestCase):
     def setUp(self):
         self.log_patch = patch('maxbunny.consumer.BunnyConsumer.configure_logger', new=get_storing_logger)
         self.log_patch.start()
-
-        self.rabbit_patch = patch('rabbitpy.Connection', new=partial(MockConnection, fail=2))
-        self.rabbit_patch.start()
-
-        self.rabbit_queue_patch = patch('rabbitpy.Queue', MockQueue)
-        self.rabbit_queue_patch.start()
+        import maxbunny.tests
+        maxbunny.tests.queue_used = False
 
     def tearDown(self):
         self.log_patch.stop()
-        self.rabbit_patch.stop()
-        self.rabbit_queue_patch.stop()
 
-    def test_rabbitm_start_disconnected_reconnects(self):
+    @patch('rabbitpy.Queue', MockQueue)
+    @patch('rabbitpy.Connection', new=partial(MockConnection, fail=2))
+    def test_worker_reattempts_rabbitmq_start_disconnected(self):
+        """
+            Given the rabbitmq server is down when the worker starts
+            And the worker keeps trying to reconnect
+            When the server goes up
+            Then the worker starts listening
+            And exits normally
+        """
         runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
         consumer = TestConsumer(runner)
         self.process = ConsumerThread(consumer)
@@ -92,6 +99,205 @@ class ConsumerTestsWithRabbitMQMocked(MaxBunnyTestCase):
         self.assertEqual(consumer.logger.infos[0], 'Waiting for rabbitmq...')
         self.assertEqual(consumer.logger.infos[1], 'Connection with RabbitMQ recovered!')
         self.assertEqual(consumer.logger.infos[2], 'Worker MainProcess ready')
+        self.assertEqual(consumer.logger.infos[1], 'Exiting Worker MainProcess')
+
+    @patch('rabbitpy.Queue', MockQueue)
+    @patch('rabbitpy.Connection', MockConnection)
+    def test_worker_waits_for_start_signal(self):
+        """
+            Given the worker is set to wait for a sync event between workers
+            When the worker starts
+            And the signal is sent
+            Then the worker starts listening
+            And exits normally
+        """
+
+        wait_signal = Event()
+        runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini', wait_signal=wait_signal)
+        consumer = TestConsumer(runner)
+        self.process = ConsumerThread(consumer, nowait=False)
+        self.process.start()
+
+        # Process is waiting the signal to be set, so we won't get anything in the logs
+        self.assertEqual(len(consumer.logger.infos), 0)
+
+        # Set the signal and wait for the process to stop and get the log
+        wait_signal.set()
+        self.process.join()
+
+        self.assertEqual(consumer.logger.infos[0], 'Worker MainProcess ready')
+        self.assertEqual(consumer.logger.infos[1], 'Exiting Worker MainProcess')
+
+    @patch('rabbitpy.Queue', new=partial(MockQueue, content=[None]))
+    @patch('rabbitpy.Connection', MockConnection)
+    def test_worker_receives_non_message_from_queue(self):
+        """
+            Given the worker is set to wait for a sync event between workers
+            When the worker starts
+            And the signal is sent
+            Then the worker starts listening
+            And exits normally
+        """
+        runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
+        consumer = TestConsumer(runner)
+        self.process = ConsumerThread(consumer)
+        self.process.start()
+        self.process.join()
+
+        self.assertEqual(consumer.logger.infos[0], 'Worker MainProcess ready')
+        self.assertEqual(consumer.logger.infos[1], 'Exiting Worker MainProcess')
+
+    @patch('rabbitpy.Queue', new=partial(MockQueue, content=[KeyboardInterrupt()]))
+    @patch('rabbitpy.Connection', MockConnection)
+    def test_worker_receives_user_cancelation(self):
+        """
+            Given the worker is running
+            When the user sends a KeyboardInterrupt via ^C
+            Then the worker stops the connection
+            And worker exits
+        """
+        runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
+        consumer = TestConsumer(runner)
+        self.process = ConsumerThread(consumer)
+        self.process.start()
+        self.process.join()
+
+        self.assertEqual(consumer.logger.infos[0], 'Worker MainProcess ready')
+        self.assertEqual(consumer.logger.warnings[0], 'User Canceled')
+        self.assertEqual(consumer.logger.warnings[1], 'Disconnecting worker MainProcess')
+
+    @patch('rabbitpy.Queue', new=partial(MockQueue, content=[AMQPNotFound('Queue tests not found')]))
+    @patch('rabbitpy.Connection', MockConnection)
+    def test_rabbitpy_queue_not_found_error(self):
+        """
+            Given the queue that the worker wants to use don't exists
+            When the worker starts the rabbitpy library raises a AMQPNotFound exception
+            And worker exits
+        """
+        runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
+        consumer = TestConsumer(runner)
+        self.process = ConsumerThread(consumer)
+        self.process.start()
+        self.process.join()
+
+        self.assertEqual(consumer.logger.infos[0], 'Worker MainProcess ready')
+        self.assertEqual(consumer.logger.warnings[0], 'AMQPNotFound: Queue tests not found')
+
+    @patch('rabbitpy.Queue', new=partial(MockQueue, first=[ConnectionResetException()]))
+    @patch('rabbitpy.Connection', new=partial(MockConnection, fail=2))
+    def test_workers_restarts_on_rabbitmq_restart(self):
+        """
+            Given a running RabbitMQ server
+            And a running worker
+            When the rabbitmq server is restarted
+            Then the worker is restarted too
+        """
+        runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
+        consumer = TestConsumer(runner)
+        self.process = ConsumerThread(consumer)
+        self.process.start()
+        self.process.join()
+
+        self.assertEqual(consumer.logger.infos[0], 'Waiting for rabbitmq...')
+        self.assertEqual(consumer.logger.infos[1], 'Connection with RabbitMQ recovered!')
+        self.assertEqual(consumer.logger.infos[2], 'Worker MainProcess ready')
+        self.assertEqual(consumer.logger.infos[3], 'Waiting for rabbitmq...')
+        self.assertEqual(consumer.logger.infos[4], 'Connection with RabbitMQ recovered!')
+        self.assertEqual(consumer.logger.infos[5], 'Worker MainProcess ready')
+        self.assertEqual(consumer.logger.infos[6], 'Exiting Worker MainProcess')
+        self.assertEqual(consumer.logger.warnings[0], 'Rabbit Connection Reset')
+        self.assertEqual(consumer.logger.warnings[1], 'Restarting Worker MainProcess')
+
+    @patch('rabbitpy.Queue', new=partial(MockQueue, first=[Exception('Not Handled Exception')]))
+    @patch('rabbitpy.Connection', MockConnection)
+    def test_worker_restarts_on_not_handled_exception(self):
+        """
+            Given a running worker
+            When the consumer process raises an unhandled exception
+            Then the worker is restarted
+        """
+        runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
+        consumer = TestConsumer(runner)
+        self.process = ConsumerThread(consumer)
+        self.process.start()
+        self.process.join()
+
+        self.assertEqual(consumer.logger.infos[0], 'Worker MainProcess ready')
+        self.assertEqual(consumer.logger.infos[1], 'Worker MainProcess ready')
+        self.assertEqual(consumer.logger.infos[2], 'Exiting Worker MainProcess')
+        self.assertEqual(consumer.logger.warnings[0], "Exception: Not Handled Exception")
+        self.assertEqual(consumer.logger.warnings[1], 'Restarting Worker MainProcess')
+
+    @patch('rabbitpy.Queue', new=partial(MockQueue, content=[thread.error('child process')]))
+    @patch('rabbitpy.Connection', MockConnection)
+    def test_worker_exits_on_exception_caused_by_TERM_signal(self):
+        """
+            Given a running worker
+            When the consumer process raises an exception triggered by a TERM signal
+            Then the worker is forced to stop
+        """
+        runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
+        consumer = TestConsumer(runner)
+        self.process = ConsumerThread(consumer)
+        self.process.start()
+        self.process.join()
+
+        self.assertEqual(consumer.logger.infos[0], 'Worker MainProcess ready')
+        self.assertEqual(consumer.logger.errors[0], 'Received TERM Signal. Exiting MainProcess ...')
+
+    @patch('rabbitpy.Queue', new=partial(MockQueue, content=[AttributeError('terminate')]))
+    @patch('rabbitpy.Connection', MockConnection)
+    def test_worker_exits_on_exception2_caused_by_TERM_signal(self):
+        """
+            Given a running worker
+            When the consumer process raises an AttributeError triggered by a TERM signal
+            Then the worker is forced to stop
+        """
+        runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
+        consumer = TestConsumer(runner)
+        self.process = ConsumerThread(consumer)
+        self.process.start()
+        self.process.join()
+
+        self.assertEqual(consumer.logger.infos[0], 'Worker MainProcess ready')
+        self.assertEqual(consumer.logger.errors[0], 'Received TERM Signal. Exiting MainProcess ...')
+
+    @patch('rabbitpy.Queue', new=partial(MockQueue, first=[AttributeError("'foo' object has no attribute 'bar'")]))
+    @patch('rabbitpy.Connection', MockConnection)
+    def test_worker_restarts_on_AttributeError_NOT_caused_by_TERM_signal(self):
+        """
+            Given a running worker
+            When the consumer process raises an AttributeError NOt triggered by a TERM signal
+            Then the worker is restarted
+        """
+        runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
+        consumer = TestConsumer(runner)
+        self.process = ConsumerThread(consumer)
+        self.process.start()
+        self.process.join()
+
+        self.assertEqual(consumer.logger.infos[0], 'Worker MainProcess ready')
+        self.assertEqual(consumer.logger.infos[1], 'Worker MainProcess ready')
+        self.assertEqual(consumer.logger.infos[2], 'Exiting Worker MainProcess')
+        self.assertEqual(consumer.logger.warnings[0], "AttributeError: 'foo' object has no attribute 'bar'")
+        self.assertEqual(consumer.logger.warnings[1], 'Restarting Worker MainProcess')
+
+    @patch('rabbitpy.Queue', new=partial(MockQueue, content=[AssertionError('terminate')]))
+    @patch('rabbitpy.Connection', MockConnection)
+    def test_worker_exits_on_exception3_caused_by_TERM_signal(self):
+        """
+            Given a running worker
+            When the consumer process raises an exception triggered by a TERM signal
+            Then the worker is forced to stop
+        """
+        runner = MockRunner('tests', 'maxbunny.ini', 'instances.ini')
+        consumer = TestConsumer(runner)
+        self.process = ConsumerThread(consumer)
+        self.process.start()
+        self.process.join()
+
+        self.assertEqual(consumer.logger.infos[0], 'Worker MainProcess ready')
+        self.assertEqual(consumer.logger.errors[0], 'Received TERM Signal. Exiting MainProcess ...')
 
 
 class ConsumerTests(MaxBunnyTestCase):

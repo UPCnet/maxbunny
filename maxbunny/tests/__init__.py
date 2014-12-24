@@ -5,6 +5,7 @@ import os
 import sys
 import unittest
 import socket
+import thread
 
 from pamqp import specification
 import tempfile
@@ -91,17 +92,35 @@ class MockConnection(object):
             raise Exception('Mocked RabbitMQ Server not found')
         return Channel()
 
+    def close(self):
+        pass
+
+queue_used = False
+
 
 class MockQueue(object):
     """
-        Fakes a rabbitpy.Queue with no messages.
+        Fakes a rabbitpy.Queue with messages defined in content param.
     """
 
-    def __init__(self, *args, **kwargs):
-        pass
+    def __init__(self, channel, name, content=[], *args, **kwargs):
+        self.content = content
+        self.first = kwargs.get('first', self.content)
 
     def consume_messages(self):
-        return []
+        """
+            Returns items on self.content as a generator. On the first
+            execution, uses self.first list. If a list item is an exception
+            raises it instead of yielding
+        """
+        global queue_used
+        queue_content = self.content if queue_used else self.first
+        queue_used = True
+        for item in queue_content:
+            if isinstance(item, BaseException) or isinstance(item, thread.error):
+                raise item
+            else:
+                yield item
 
 
 class Channel(object):
@@ -255,11 +274,13 @@ class MockRunner(object):
     rabbitmq_server = TEST_VHOST_URL
     workers_ready = None
 
-    def __init__(self, consumer_name, ini_file, instances_ini, cloudapis_ini='nocloudapis.ini', logging_folder=None):
+    def __init__(self, consumer_name, ini_file, instances_ini, cloudapis_ini='nocloudapis.ini', logging_folder=None, wait_signal=None):
         self.debug = consumer_name
         self.logging_folder = logging_folder
         self.config = ConfigParser.ConfigParser()
         self.config.read('{}/{}'.format(TESTS_PATH, ini_file))
+        if wait_signal:
+            self.workers_ready = wait_signal
 
         self.cloudapis = ConfigParser.ConfigParser()
         self.cloudapis.read('{}/{}'.format(TESTS_PATH, cloudapis_ini))

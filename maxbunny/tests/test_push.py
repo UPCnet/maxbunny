@@ -228,7 +228,7 @@ class PushTests(MaxBunnyTestCase):
     def test_ios_push_apns_exception(self):
         """
             Given a message with a ack from a testuser0 conversation message
-            And the apnsclient Library raises an exception
+            And the apnsclient library raises an exception
             When the message is processed
             Then an exception is raised
         """
@@ -254,7 +254,7 @@ class PushTests(MaxBunnyTestCase):
     def test_android_push_apns_exception(self):
         """
             Given a message with a ack from a testuser0 conversation message
-            And the ios Library raises an exception
+            And the gcmclient library raises an exception
             When the message is processed
             Then an exception is raised
         """
