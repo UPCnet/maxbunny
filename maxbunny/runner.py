@@ -107,7 +107,7 @@ class BunnyRunner(object):
                     name='consumers.{}.{}'.format(consumer.name, worker_id + 1),
                     target=consumer.consume)
                 consumer.workers.append(worker)
-                consumer.start()
+                worker.start()
 
         self.workers_ready.set()
 
