@@ -121,7 +121,7 @@ class SyncACLTests(MaxBunnyTestCase):
     # TESTS FOR SUCCESFULL SCENARIOS
     # ==============================
 
-    def test_message_with_tasks(self):
+    def test_message_with_tasks_all(self):
         """
 
         """
@@ -149,3 +149,32 @@ class SyncACLTests(MaxBunnyTestCase):
         self.assertEqual(len(consumer.logger.infos), 1)
 
         self.assertTrue(consumer.logger.infos[0].startswith('[tests] SUCCEDED subscribe, -write, +read on e6847aed3105e85ae603c56eb2790ce85e212997 for testuser1'))
+
+    def test_message_with_tasks_no_subscribe(self):
+        """
+
+        """
+        from maxbunny.consumers.syncacl import __consumer__
+        from maxbunny.tests.mockers.syncacl import TASKS_MESSAGE_NO_SUBSCRIBE as message
+
+        message_id = '00000000001'
+        self.set_server(message, message_id)
+
+        httpretty.enable()
+
+        http_mock_info()
+        http_mock_subscribe_user()
+        http_mock_grant_subscription_permission()
+        http_mock_revoke_subscription_permission()
+
+        runner = MockRunner('syncacl', 'maxbunny.ini', 'instances.ini')
+        consumer = __consumer__(runner)
+
+        consumer.process(message)
+
+        httpretty.disable()
+        httpretty.reset()
+
+        self.assertEqual(len(consumer.logger.infos), 1)
+
+        self.assertTrue(consumer.logger.infos[0].startswith('[tests] SUCCEDED -write, +read on e6847aed3105e85ae603c56eb2790ce85e212997 for testuser1'))

@@ -45,16 +45,14 @@ class SyncACLConsumer(BunnyConsumer):
             successed_tasks.append('subscribe')
 
         revokes = message_tasks.get('revoke', [])
-        if revokes:
-            for permission in revokes:
-                client.contexts[message_context].permissions[message_username][permission].delete()
-                successed_tasks.append('-{}'.format(permission))
+        for permission in revokes:
+            client.contexts[message_context].permissions[message_username][permission].delete()
+            successed_tasks.append('-{}'.format(permission))
 
         grants = message_tasks.get('grant', [])
-        if grants:
-            for permission in grants:
-                client.contexts[message_context].permissions[message_username][permission].put()
-                successed_tasks.append('+{}'.format(permission))
+        for permission in grants:
+            client.contexts[message_context].permissions[message_username][permission].put()
+            successed_tasks.append('+{}'.format(permission))
 
         self.logger.info('[{}] SUCCEDED {} on {} for {}'.format(domain, ', '.join(successed_tasks), message_context, message_username))
 
