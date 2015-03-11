@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-from maxbunny.consumer import BunnyMessageCancel
 from maxbunny.consumer import BunnyConsumer
+from maxbunny.consumer import BunnyMessageCancel
 from maxbunny.utils import findHashtags
 from maxcarrot.message import RabbitMessage
+
 
 GENERATOR_ID = 'Twitter'
 

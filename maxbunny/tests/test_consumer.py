@@ -99,7 +99,7 @@ class ConsumerTestsWithRabbitMQMocked(MaxBunnyTestCase):
         self.assertEqual(consumer.logger.infos[0], 'Waiting for rabbitmq...')
         self.assertEqual(consumer.logger.infos[1], 'Connection with RabbitMQ recovered!')
         self.assertEqual(consumer.logger.infos[2], 'Worker MainProcess ready')
-        self.assertEqual(consumer.logger.infos[1], 'Exiting Worker MainProcess')
+        self.assertEqual(consumer.logger.infos[3], 'Exiting Worker MainProcess')
 
     @patch('rabbitpy.Queue', MockQueue)
     @patch('rabbitpy.Connection', MockConnection)

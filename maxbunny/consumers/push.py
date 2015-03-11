@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
+from maxbunny.consumer import BunnyConsumer
+from maxbunny.consumer import BunnyMessageCancel
+from maxbunny.utils import extract_domain
+from maxbunny.utils import normalize_message
+from maxcarrot.message import RabbitMessage
+
 from apnsclient import APNs
 from apnsclient import Message
 from apnsclient import Session
+from copy import deepcopy
 from gcmclient import GCM
 from gcmclient import JSONMessage
-from maxbunny.consumer import BunnyConsumer, BunnyMessageCancel
-from maxcarrot.message import RabbitMessage
-from maxbunny.utils import extract_domain
-from maxbunny.utils import normalize_message
 
 import re
-from copy import deepcopy
 
 
 class PushConsumer(BunnyConsumer):
@@ -49,12 +51,7 @@ class PushConsumer(BunnyConsumer):
         usernames_by_token = {}
 
         domain = extract_domain(message)
-        client = self.clients[domain]
-
-        # Client will be None only if after determining the domain (or getting the default),
-        # no client could be found matching that domain
-        if client is None:
-            raise BunnyMessageCancel('Unknown domain "unknown"'.format(domain))
+        client = self.get_domain_client(domain)
 
         # Forward the routing key to the mobile apps as "destination" field
         match_destination = re.match(r'(\w+).?(?:messages|notifications)?', rabbitpy_message.routing_key)

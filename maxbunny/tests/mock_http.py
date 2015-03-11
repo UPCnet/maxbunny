@@ -21,6 +21,29 @@ def http_mock_contexts(contexts, uri='tests.local'):
     )
 
 
+def http_mock_revoke_subscription_permission(uri='tests.local', status_code=204):
+    httpretty.register_uri(
+        httpretty.DELETE, re.compile("http://{}/contexts/\w+/permissions/\w+/\w+".format(uri)),
+        status=status_code,
+    )
+
+
+def http_mock_grant_subscription_permission(uri='tests.local', status_code=201):
+    httpretty.register_uri(
+        httpretty.PUT, re.compile("http://{}/contexts/\w+/permissions/\w+/\w+".format(uri)),
+        status=status_code,
+    )
+
+
+def http_mock_subscribe_user(uri='tests.local'):
+    httpretty.register_uri(
+        httpretty.POST, re.compile("http://{}/people/\w+/subscriptions".format(uri)),
+        body=json.dumps({}),
+        status=201,
+        content_type="application/json"
+    )
+
+
 def http_mock_users(users, uri='tests.local'):
     httpretty.register_uri(
         httpretty.GET, "http://{}/people?limit=0&twitter_enabled=True".format(uri),

@@ -4,7 +4,7 @@ from maxbunny.utils import send_drop_traceback
 from maxbunny.utils import send_requeue_traceback
 from maxcarrot.message import MaxCarrotParsingError
 from maxclient.rest import RequestError
-
+from maxbunny import BUNNY_NO_DOMAIN
 from logging.handlers import WatchedFileHandler
 from rabbitpy.exceptions import AMQPConnectionForced
 from rabbitpy.exceptions import AMQPNotFound
@@ -294,3 +294,20 @@ class BunnyConsumer(object):
             Return None on successfull processing
         """
         pass  # pragma: no cover
+
+    def get_domain_client(self, domain):
+        """
+            Returns a valid domain, raises BunnyMessageCancel on failure.
+
+            If client is None it means that we could not load a client for the specified domain
+            Then we have to assert if it's because:
+              - the domain is missing, and we couldn't load the default
+              - Or the client for that domain is not defined or no client could be found matching that domain
+        """
+        client = self.clients[domain]
+        if client is None and domain is BUNNY_NO_DOMAIN:
+            raise BunnyMessageCancel('Missing domain, and default could not be loaded'.format(domain))
+        elif client is None and domain is not BUNNY_NO_DOMAIN:
+            raise BunnyMessageCancel('Unknown domain "{}"'.format(domain))
+
+        return client

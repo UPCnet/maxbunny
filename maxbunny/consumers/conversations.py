@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 from maxbunny import BUNNY_NO_DOMAIN
-from maxbunny.consumer import BunnyConsumer, BunnyMessageCancel
-from maxcarrot.message import RabbitMessage
+from maxbunny.consumer import BunnyConsumer
+from maxbunny.consumer import BunnyMessageCancel
 from maxbunny.utils import extract_domain
-import re
-from StringIO import StringIO
-import base64
-import rabbitpy
+from maxcarrot.message import RabbitMessage
+
 import json
 import pkg_resources
+import rabbitpy
+import re
 
 
 class ConversationsConsumer(BunnyConsumer):
@@ -30,16 +30,7 @@ class ConversationsConsumer(BunnyConsumer):
             raise BunnyMessageCancel('Conversation id missing on routing_key "{}"'.format(rabbitpy_message.routing_key))
 
         domain = extract_domain(message)
-
-        # If client is None it means that we could not load a client for the specified domain
-        # Then we have to assert if it's because the domain is missing, and we couldn't load the default
-        # Or the client for that domain is not defined
-        # no client could be found matching that domain
-        client = self.clients[domain]
-        if client is None and domain is BUNNY_NO_DOMAIN:
-            raise BunnyMessageCancel('Missing domain, and default could not be loaded'.format(domain))
-        elif client is None and domain is not BUNNY_NO_DOMAIN:
-            raise BunnyMessageCancel('Unknown domain "{}"'.format(domain))
+        client = self.get_domain_client(domain)
 
         username = message.get('user', {}).get('username', None)
         if username is None:
@@ -48,7 +39,7 @@ class ConversationsConsumer(BunnyConsumer):
 
         activity = endpoint.post(object_content=message.data.get('text'))
 
-        #Activity post returned None, so user or conversation was not found
+        # Activity post returned None, so user or conversation was not found
         if activity is None:
             try:
                 message = json.loads(client.last_response)['error_description']
