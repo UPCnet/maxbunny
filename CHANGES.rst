@@ -1,11 +1,65 @@
 Changelog
 =========
 
-4.0.17 (unreleased)
--------------------
+5.0 (2015-04-14)
+----------------
 
-- Nothing changed yet.
-
+* Move get domain client to base consumer [Carles Bruguera]
+* Test consumer exceptions [Carles Bruguera]
+* Fine tune logs & move multiprocess spawn to runner [Carles Bruguera]
+* PEP8, remove unused code and general Cleanup [Carles Bruguera]
+* Use thread on mocket rabbit tests [Carles Bruguera]
+* Test conversation & activity push [Carles Bruguera]
+* Remove mocking from conversation tests, running rabbitmq is mandatory [Carles Bruguera]
+* Document mockers [Carles Bruguera]
+* Cleanup [Carles Bruguera]
+* Test android [Carles Bruguera]
+* test pushdebug [Carles Bruguera]
+* Refactor handling of objects in separate methods [Carles Bruguera]
+* Refactor android push [Carles Bruguera]
+* Handle ios and android exceptions on consumer loop exception handling [Carles Bruguera]
+* Move ios specific parts inside send ios method [Carles Bruguera]
+* Push tests [Carles Bruguera]
+* Refactor handling of error and successes [Carles Bruguera]
+* Base for push tests [Carles Bruguera]
+* Increment waiting time for mails [Carles Bruguera]
+* Test non-json message, fix error logs location [Carles Bruguera]
+* Fix Requeue exception handling [Carles Bruguera]
+* Test Requeing without uuid [Carles Bruguera]
+* SMTP Mocker, fix runner ini param [Carles Bruguera]
+* Start consume loop as a thread [Carles Bruguera]
+* Output reason of forced close [Carles Bruguera]
+* Fix BunnyConsumer test spawning multiprocess [Carles Bruguera]
+* Make MockLogger log to file, to fix problem in multiprocessing [Carles Bruguera]
+* Test error from max [Carles Bruguera]
+* Remove unused image processing code [Carles Bruguera]
+* Check push queue on all tests [Carles Bruguera]
+* Set httpretty so won't block haigha requests [Carles Bruguera]
+* Test push queue reception [Carles Bruguera]
+* Add default instance to instances2.ini [Carles Bruguera]
+* Use real clients wrapper [Carles Bruguera]
+* Instances defined in file, with a mock runner param [Carles Bruguera]
+* Use parsed json body [Carles Bruguera]
+* Make clients wrapper reload itself when needed [Carles Bruguera]
+* Fix test descriptions [Carles Bruguera]
+* Organize mockers [Carles Bruguera]
+* Prepare test_conversations [Carles Bruguera]
+* Rename tweety mocks [Carles Bruguera]
+* Avoid iterating users twice [Carles Bruguera]
+* Move remaining literal into var [Carles Bruguera]
+* Test debug hashtag [Carles Bruguera]
+* Cache queries, only once for each call to process [Carles Bruguera]
+* Test all remaining scenarios [Carles Bruguera]
+* Remove unnecessary nesting [Carles Bruguera]
+* Alert on hashtag mesagee not posting to multiple max servers [Carles Bruguera]
+* Method and variable rename for clarity [Carles Bruguera]
+* Add tests scenarios descriptions [Carles Bruguera]
+* Create mockers for new maxbunny [Carles Bruguera]
+* Adapt tweety tests [Carles Bruguera]
+* Single-process debug mode [Carles Bruguera]
+* Change to docopt to parse options [Carles Bruguera]
+* Be more explicit on client loading failure [Carles Bruguera]
+* Don't Cancel at method end [Carles Bruguera]
 
 4.0.16 (2014-12-04)
 -------------------
