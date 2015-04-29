@@ -7,6 +7,7 @@ from maxbunny.tests import get_storing_logger
 from maxbunny.tests import TEST_VHOST_URL
 
 from maxbunny.tests.mock_http import http_mock_info
+from maxbunny.tests.mock_http import http_mock_post_create_user
 from maxbunny.tests.mock_http import http_mock_subscribe_user
 from maxbunny.tests.mock_http import http_mock_grant_subscription_permission
 from maxbunny.tests.mock_http import http_mock_revoke_subscription_permission
@@ -178,3 +179,33 @@ class SyncACLTests(MaxBunnyTestCase):
         self.assertEqual(len(consumer.logger.infos), 1)
 
         self.assertTrue(consumer.logger.infos[0].startswith('[tests] SUCCEDED -write, +read on e6847aed3105e85ae603c56eb2790ce85e212997 for testuser1'))
+
+    def test_message_with_user_creation(self):
+        """
+
+        """
+        from maxbunny.consumers.syncacl import __consumer__
+        from maxbunny.tests.mockers.syncacl import TASKS_MESSAGE as message
+
+        message_id = '00000000001'
+        self.set_server(message, message_id)
+
+        httpretty.enable()
+
+        http_mock_info()
+        http_mock_post_create_user()
+        http_mock_subscribe_user(fail_response=httpretty.Response(body='{}', status=400, content_type="application/json"))
+        http_mock_grant_subscription_permission()
+        http_mock_revoke_subscription_permission()
+
+        runner = MockRunner('syncacl', 'maxbunny.ini', 'instances.ini')
+        consumer = __consumer__(runner)
+
+        consumer.process(message)
+
+        httpretty.disable()
+        httpretty.reset()
+
+        self.assertEqual(len(consumer.logger.infos), 1)
+
+        self.assertTrue(consumer.logger.infos[0].startswith('[tests] SUCCEDED subscribe, -write, +read on e6847aed3105e85ae603c56eb2790ce85e212997 for testuser1'))

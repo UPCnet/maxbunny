@@ -31,7 +31,7 @@ class MaxClientsWrapper(object):
     def load_instances(self):
         """
             Loads instances and parses all maxservers. For each maxserver
-            a maxclient with key="maxserver domain" is stored on self.maxclients
+            a maxclient with key == maxserver is stored on self.maxclients
         """
         self.maxclients = {}
         instances = ConfigParser.ConfigParser()

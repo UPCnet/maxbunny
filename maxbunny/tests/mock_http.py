@@ -35,12 +35,17 @@ def http_mock_grant_subscription_permission(uri='tests.local', status_code=201):
     )
 
 
-def http_mock_subscribe_user(uri='tests.local'):
-    httpretty.register_uri(
-        httpretty.POST, re.compile("http://{}/people/\w+/subscriptions".format(uri)),
+def http_mock_subscribe_user(uri='tests.local', fail_response=None):
+    responses = [httpretty.Response(
         body=json.dumps({}),
         status=201,
-        content_type="application/json"
+        content_type="application/json")]
+    if fail_response:
+        responses.insert(0, fail_response)
+
+    httpretty.register_uri(
+        httpretty.POST, re.compile("http://{}/people/\w+/subscriptions".format(uri)),
+        responses=responses
     )
 
 
@@ -96,3 +101,13 @@ def http_mock_get_context_tokens(tokens, uri='tests.local', status=200):
         status=status,
         content_type="application/json"
     )
+
+
+def http_mock_post_create_user(uri='tests.local', status=201):
+    httpretty.register_uri(
+        httpretty.POST, "http://{}/people".format(uri),
+        body=json.dumps({}),
+        status=status,
+        content_type="application/json"
+    )
+

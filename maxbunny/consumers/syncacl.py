@@ -4,6 +4,7 @@ from maxbunny.consumer import BunnyMessageCancel
 from maxbunny.utils import extract_domain
 from maxbunny.utils import normalize_message
 from maxcarrot.message import RabbitMessage
+from maxclient.rest import RequestError
 
 
 class SyncACLConsumer(BunnyConsumer):
@@ -41,7 +42,14 @@ class SyncACLConsumer(BunnyConsumer):
 
         do_subscribe = message_tasks.get('subscribe', None) is not None
         if do_subscribe:
-            client.people[message_username].subscriptions.post(object_url=message_context)
+            # If subscription fails, try to create the user. If the problem wasn't an existent user
+            # the atter subscription retry will fail with original error.
+            try:
+                client.people[message_username].subscriptions.post(object_url=message_context)
+            except RequestError:
+                client.people.post(username=message_username)
+                client.people[message_username].subscriptions.post(object_url=message_context)
+
             successed_tasks.append('subscribe')
 
         revokes = message_tasks.get('revoke', [])
