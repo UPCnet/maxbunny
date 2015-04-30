@@ -45,12 +45,17 @@ class SyncACLConsumer(BunnyConsumer):
             # If subscription fails, try to create the user. If the problem wasn't an existent user
             # the atter subscription retry will fail with original error.
             try:
-                client.people[message_username].subscriptions.post(object_url=message_context)
+                client.contexts[message_context].subscriptions.post(actor_username=message_username, actor_objectType='person')
             except RequestError:
                 client.people.post(username=message_username)
-                client.people[message_username].subscriptions.post(object_url=message_context)
+                client.contexts[message_context].subscriptions.post(actor_username=message_username, actor_objectType='person')
 
             successed_tasks.append('subscribe')
+
+        do_unsubscribe = message_tasks.get('unsubscribe', None) is not None
+        if do_unsubscribe:
+            client.contexts[message_context].subscriptions[message_username].delete()
+            successed_tasks.append('unsubscribe')
 
         revokes = message_tasks.get('revoke', [])
         for permission in revokes:
@@ -62,7 +67,7 @@ class SyncACLConsumer(BunnyConsumer):
             client.contexts[message_context].permissions[message_username][permission].put()
             successed_tasks.append('+{}'.format(permission))
 
-        self.logger.info('[{}] SUCCEDED {} on {} for {}'.format(domain, ', '.join(successed_tasks), message_context, message_username))
+            self.logger.info('[{}] SUCCEDED {} on {} for {}'.format(domain, ', '.join(successed_tasks), message_context, message_username))
 
 
 __consumer__ = SyncACLConsumer
