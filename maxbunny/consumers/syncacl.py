@@ -67,7 +67,7 @@ class SyncACLConsumer(BunnyConsumer):
             client.contexts[message_context].permissions[message_username][permission].put()
             successed_tasks.append('+{}'.format(permission))
 
-            self.logger.info('[{}] SUCCEDED {} on {} for {}'.format(domain, ', '.join(successed_tasks), message_context, message_username))
+        self.logger.info('[{}] SUCCEDED {} on {} for {}'.format(domain, ', '.join(successed_tasks), message_context, message_username))
 
 
 __consumer__ = SyncACLConsumer
