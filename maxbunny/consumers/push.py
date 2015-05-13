@@ -80,7 +80,7 @@ class PushConsumer(BunnyConsumer):
                 tokens_by_platform[token.get('platform')].append(token.get('token'))
 
         processed_tokens = []
-        processed_tokens += self.send_ios_push_notifications(tokens_by_platform.get('iOS', []), push_message.packed)
+        processed_tokens += self.send_ios_push_notifications(tokens_by_platform.get('ios', []), push_message.packed)
         processed_tokens += self.send_android_push_notifications(tokens_by_platform.get('android', []), push_message.packed)
 
         # If we reach here, push messages had been sent without major failures
