@@ -1,11 +1,38 @@
 Changelog
 =========
 
-4.0.17 (unreleased)
--------------------
+5.0 (2015-05-19)
+----------------
 
-- Nothing changed yet.
-
+* platform name mismatch [root]
+* Missing unsubscribe task processor [Carles Bruguera]
+* Create user if subscription fails [Carles Bruguera]
+* Improve coverage, remove unnecessary if's [Carles Bruguera]
+* Add syncacl consumer with tests [Carles Bruguera]
+* PEP8 and move get domain client to base consumer [Carles Bruguera]
+* Fine tune logs & move multiprocess spawn to runner [Carles Bruguera]
+* Remove unused code [Carles Bruguera]
+* Cleanup [Carles Bruguera]
+* Refactor handling of objects in separate methods [Carles Bruguera]
+* Refactor android push [Carles Bruguera]
+* Handle ios and android exceptions on consumer loop exception handling [Carles Bruguera]
+* Move ios specific parts inside send ios method [Carles Bruguera]
+* Refactor handling of error and successes [Carles Bruguera]
+* Output reason of forced close [Carles Bruguera]
+* Remove unused image processing code [Carles Bruguera]
+* Set httpretty so won't block haigha requests [Carles Bruguera]
+* Make clients wrapper reload itself when needed [Carles Bruguera]
+* Avoid iterating users twice [Carles Bruguera]
+* Cache queries, only once for each call to process [Carles Bruguera]
+* Alert on hashtag mesagee not posting to multiple max servers [Carles Bruguera]
+* Method and variable rename for clarity [Carles Bruguera]
+* Add extensive tests for all consumers [Carles Bruguera]
+* Adapt tweety tests [Carles Bruguera]
+* Set default option [Carles Bruguera]
+* Single-process debug mode [Carles Bruguera]
+* Change to docopt to parse options [Carles Bruguera]
+* Be more explicit on client loading failure [Carles Bruguera]
+* Don't Cancel at method end [Carles Bruguera]
 
 4.0.16 (2014-12-04)
 -------------------
