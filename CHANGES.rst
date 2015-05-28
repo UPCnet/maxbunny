@@ -1,10 +1,10 @@
 Changelog
 =========
 
-5.1 (unreleased)
+5.1 (2015-05-28)
 ----------------
 
-- Nothing changed yet.
+* Fix overlapped releases
 
 
 5.0 (2015-05-19)
