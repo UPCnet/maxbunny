@@ -257,20 +257,28 @@ class PushConsumer(BunnyConsumer):
         #     print "Wait or schedule task after %s seconds" % res.delay(retry)
         #     # retry += 1 and send retry_msg again
 
+        def has_token_in(status, token):
+            """
+                Safe check that token in contained in a res.<status> attribute
+            """
+            if not hasattr(res, status):
+                return False
+            return token in getattr(res, status)
+
         processed_tokens = []
         for token in tokens:
-            if token in res.success:
+            if has_token_in('success', token):
                 processed_tokens.append(('ios', token, None))
 
-            elif token in res.unavailable:
+            elif has_token_in('unavailable', token):
                 processed_tokens.append(('android', token, 'Unavailable'))
 
-            elif token in res.not_registered:
+            elif has_token_in('not_registered', token):
                 processed_tokens.append(('android', token, 'Not Registered'))
                 # probably app was uninstalled
                 # self.logger.info(u"[Android] Invalid %s from database" % reg_id)
 
-            elif token in res.failed:
+            elif has_token_in('failed', token):
                 processed_tokens.append(('android', token, res.failed[token]))
                 # unrecoverably failed, these ID's will not be retried
                 # consult GCM manual for all error codes
