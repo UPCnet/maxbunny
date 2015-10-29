@@ -1,11 +1,10 @@
 Changelog
 =========
 
-5.2 (unreleased)
+5.2 (2015-10-29)
 ----------------
 
-- Nothing changed yet.
-
+* Safe check for token status [Carles Bruguera]
 
 5.1 (2015-05-28)
 ----------------
