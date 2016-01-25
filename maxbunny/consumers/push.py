@@ -112,6 +112,7 @@ class PushConsumer(BunnyConsumer):
                 succeed += token_usernames
                 succeeded_tokens += 1
             else:
+                client.tokens[token].delete()
                 failed.append((platform, usernames_string, error))
 
         # Log once for all successes

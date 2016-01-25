@@ -34,6 +34,11 @@ def http_mock_grant_subscription_permission(uri='tests.local', status_code=201):
         status=status_code,
     )
 
+def http_mock_delete_token(uri='tests.local', status_code=204):
+    httpretty.register_uri(
+        httpretty.DELETE, re.compile("http://{}/tokens/\w+".format(uri)),
+        status=status_code,
+    )
 
 def http_mock_subscribe_user(uri='tests.local', fail_response=None):
     responses = [httpretty.Response(
