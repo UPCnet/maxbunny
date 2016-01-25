@@ -44,7 +44,7 @@ def http_mock_subscribe_user(uri='tests.local', fail_response=None):
         responses.insert(0, fail_response)
 
     httpretty.register_uri(
-        httpretty.POST, re.compile("http://{}/people/\w+/subscriptions".format(uri)),
+        httpretty.POST, re.compile("http://{}/contexts/\w+/subscriptions".format(uri)),
         responses=responses
     )
 
