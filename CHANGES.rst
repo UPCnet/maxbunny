@@ -1,11 +1,12 @@
 Changelog
 =========
 
-5.3 (unreleased)
+5.3 (2016-07-25)
 ----------------
 
-- Nothing changed yet.
-
+* Delete failed tokens [Carles Bruguera]
+* Fix subscription mocker [Carles Bruguera]
+* Fix token platform case check [Carles Bruguera]
 
 5.2 (2015-10-29)
 ----------------
