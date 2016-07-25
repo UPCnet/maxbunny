@@ -1,6 +1,12 @@
 Changelog
 =========
 
+5.4 (unreleased)
+----------------
+
+- Nothing changed yet.
+
+
 5.3 (2016-07-25)
 ----------------
 
