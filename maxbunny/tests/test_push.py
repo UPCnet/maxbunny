@@ -12,6 +12,7 @@ from maxbunny.tests import get_storing_logger
 from maxbunny.tests.mock_http import http_mock_info
 from maxbunny.tests.mock_http import http_mock_get_conversation_tokens
 from maxbunny.tests.mock_http import http_mock_get_context_tokens
+from maxbunny.tests.mock_http import http_mock_delete_token
 
 from mock import patch
 import httpretty
@@ -292,6 +293,7 @@ class PushTests(MaxBunnyTestCase):
 
         http_mock_info()
         http_mock_get_conversation_tokens(tokens=tokens)
+        http_mock_delete_token()
 
         runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
         consumer = __consumer__(runner)
@@ -324,6 +326,7 @@ class PushTests(MaxBunnyTestCase):
         from maxbunny.tests.mockers.push import ANDROID_ACK_SUCCESS_ALL_FAILED_MIXED as gcm_response
 
         http_mock_info()
+        http_mock_delete_token()
         http_mock_get_conversation_tokens(tokens=tokens)
 
         runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
@@ -510,6 +513,7 @@ class PushTests(MaxBunnyTestCase):
 
         http_mock_info()
         http_mock_get_conversation_tokens(tokens=tokens)
+        http_mock_delete_token()
 
         runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
         consumer = __consumer__(runner)
@@ -570,6 +574,7 @@ class PushTests(MaxBunnyTestCase):
         from maxbunny.tests.mockers.push import ANDROID_ACK_SUCCESS_ONE_FAILED as gcm_response
 
         http_mock_info()
+        http_mock_delete_token()
         http_mock_get_conversation_tokens(tokens=tokens)
 
         runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')

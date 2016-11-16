@@ -63,21 +63,25 @@ class PushConsumer(BunnyConsumer):
             raise BunnyMessageCancel('No tokens received', notify=False)
 
         # Map user and tokens, indexed by platform and token
-        for token in tokens:
-            tokens_by_platform.setdefault(token.get('platform'), [])
-            usernames_by_token.setdefault(token.get('token'), [])
-            usernames_by_token[token.get('token')].append(token.get('username'))
+        for token_info in tokens:
+            token_platform = token_info.get('platform').lower()
+            token = token_info.get('token')
+            token_owner = token_info.get('username')
+
+            tokens_by_platform.setdefault(token_platform, [])
+            usernames_by_token.setdefault(token, [])
+            usernames_by_token[token].append(token_owner)
 
             is_debug_message = '#pushdebug' in message_data_text
-            token_is_from_sender = token.get('username') == message_username
-            token_is_duplicated = token.get('token') in tokens_by_platform[token.get('platform')]
+            token_is_from_sender = token_owner == message_username
+            token_is_duplicated = token in tokens_by_platform[token_platform]
 
             # Do not append token to sender unless #debug hashtag included
             # and add it only if it's not already in the list
             # use case: two users within a conversation, both logged in the same device. Shit happens
 
             if (is_debug_message or not token_is_from_sender) and not token_is_duplicated:
-                tokens_by_platform[token.get('platform')].append(token.get('token'))
+                tokens_by_platform[token_platform].append(token)
 
         processed_tokens = []
         processed_tokens += self.send_ios_push_notifications(tokens_by_platform.get('ios', []), push_message.packed)
@@ -108,6 +112,7 @@ class PushConsumer(BunnyConsumer):
                 succeed += token_usernames
                 succeeded_tokens += 1
             else:
+                client.tokens[token].delete()
                 failed.append((platform, usernames_string, error))
 
         # Log once for all successes
@@ -131,7 +136,19 @@ class PushConsumer(BunnyConsumer):
 
     def process_activity_object(self, message, client):
         """
-            Post or comment from a context
+            An activity has been posted on a context
+        """
+        if message['destination'] is None:
+            raise BunnyMessageCancel('The received message is not from a valid context')
+
+        tokens = client.contexts[message['destination']].tokens.get()
+        message.setdefault('data', {})
+        message['data']['alert'] = u'{user[displayname]}: '.format(**message)
+        return message, tokens
+
+    def process_comment_object(self, message, client):
+        """
+            A message has been posted on a context activity
         """
         if message['destination'] is None:
             raise BunnyMessageCancel('The received message is not from a valid context')
