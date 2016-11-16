@@ -1,11 +1,10 @@
 Changelog
 =========
 
-5.4 (unreleased)
+5.4 (2016-11-16)
 ----------------
 
-- Nothing changed yet.
-
+* Solucionar conflicte [Pilar Marinas]
 5.3 (2016-07-25)
 ----------------
 
