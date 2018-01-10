@@ -479,7 +479,7 @@ class ConsumerTests(MaxBunnyTestCase):
         self.server.send('', '{"g": "0123456789"}', routing_key='tests')
         self.process.start()
 
-        sleep(0.3)  # give a minum time to mail to be sent
+        sleep(0.6)  # give a minum time to mail to be sent
         from maxbunny.tests import sent  # MUST import sent here to get current sent mails,
 
         self.assertEqual(len(sent), 0)

@@ -13,7 +13,8 @@ requires = [
     'apns_client==0.1.8',
     'gcm-client',
     'rabbitpy',
-    'gevent'
+    'gevent',
+    'pyfcm'
 ]
 
 setup(name='maxbunny',

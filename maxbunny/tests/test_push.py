@@ -5,8 +5,10 @@ from maxbunny.tests import MockRunner
 from maxbunny.tests import MockAPNSSession
 from maxbunny.tests import MockAPNs
 from maxbunny.tests import MockGCM
+from maxbunny.tests import MockFCM
 from maxbunny.tests import set_apns_response
 from maxbunny.tests import set_gcm_response
+from maxbunny.tests import set_fcm_response
 from maxbunny.tests import MaxBunnyTestCase
 from maxbunny.tests import get_storing_logger
 from maxbunny.tests.mock_http import http_mock_info
@@ -32,11 +34,15 @@ class PushTests(MaxBunnyTestCase):
         self.gcm_server_patch = patch('gcmclient.GCM', new=MockGCM)
         self.gcm_server_patch.start()
 
+        self.fcm_server_patch = patch('pyfcm.FCMNotification', new=MockFCM)
+        self.fcm_server_patch.start()
+
     def tearDown(self):
         self.log_patch.stop()
         self.apns_server_patch.stop()
         self.apns_session_patch.stop()
         self.gcm_server_patch.stop()
+        self.fcm_server_patch.stop()
         httpretty.disable()
         httpretty.reset()
 
@@ -278,7 +284,7 @@ class PushTests(MaxBunnyTestCase):
         )
 
     @httpretty.activate
-    def test_ios_succeed_all_invalid(self):
+    def test_ios_firebase_succeed_all_invalid(self):
         """
             Given a message with a ack from a testuser0 conversation message
             And users in conversation have valid device tokens
@@ -290,6 +296,7 @@ class PushTests(MaxBunnyTestCase):
         from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
         from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
         from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS_ALL_INVALID
+        from maxbunny.tests.mockers.push import FIREBASE_CONVERSATION_ACK_SUCCESS_ALL_INVALID
 
         http_mock_info()
         http_mock_get_conversation_tokens(tokens=tokens)
@@ -298,19 +305,23 @@ class PushTests(MaxBunnyTestCase):
         runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
         consumer = __consumer__(runner)
         set_apns_response(CONVERSATION_ACK_SUCCESS_ALL_INVALID)
+        set_fcm_response(FIREBASE_CONVERSATION_ACK_SUCCESS_ALL_INVALID)
 
         processed_tokens = consumer.process(message)
 
-        self.assertEqual(len(consumer.logger.infos), 0)
+        self.assertEqual(len(consumer.logger.infos), 1)
         self.assertEqual(len(consumer.logger.warnings), 3)
+
+        self.assertEqual(consumer.logger.infos[0], "[tests] RESPONSE firebase push : {'failure': '3'}")
+
 
         self.assertEqual(consumer.logger.warnings[0], '[tests] FAILED ios push messages.000000000000.000000000001 to testuser1: ERR=8 Invalid Token')
         self.assertEqual(consumer.logger.warnings[1], '[tests] FAILED ios push messages.000000000000.000000000001 to testuser2: ERR=8 Invalid Token')
         self.assertEqual(consumer.logger.warnings[2], '[tests] FAILED ios push messages.000000000000.000000000001 to testuser3: ERR=8 Invalid Token')
-        self.assertEqual(len(processed_tokens), 3)
+        self.assertEqual(len(processed_tokens), 4)
 
     @httpretty.activate
-    def test_android_succeed_all_failed_mixed(self):
+    def test_android_firebase_succeed_all_failed_mixed(self):
         """
             Given a message with a ack from a testuser0 conversation message
             And users in conversation have valid device tokens
@@ -324,6 +335,7 @@ class PushTests(MaxBunnyTestCase):
         from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
         from maxbunny.tests.mockers.push import ANDROID_TOKENS as tokens
         from maxbunny.tests.mockers.push import ANDROID_ACK_SUCCESS_ALL_FAILED_MIXED as gcm_response
+        from maxbunny.tests.mockers.push import FIREBASE_ACK_SUCCESS_ALL_FAILED_MIXED as fcm_response
 
         http_mock_info()
         http_mock_delete_token()
@@ -332,16 +344,20 @@ class PushTests(MaxBunnyTestCase):
         runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
         consumer = __consumer__(runner)
         set_gcm_response(gcm_response)
+        set_fcm_response(fcm_response)
+
 
         processed_tokens = consumer.process(message)
 
-        self.assertEqual(len(consumer.logger.infos), 0)
+        self.assertEqual(len(consumer.logger.infos), 1)
         self.assertEqual(len(consumer.logger.warnings), 3)
+
+        self.assertEqual(consumer.logger.infos[0], "[tests] RESPONSE firebase push : {'failure': '3'}")
 
         self.assertEqual(consumer.logger.warnings[0], '[tests] FAILED android push messages.000000000000.000000000001 to testuser1: Unavailable')
         self.assertEqual(consumer.logger.warnings[1], '[tests] FAILED android push messages.000000000000.000000000001 to testuser2: Not Registered')
         self.assertEqual(consumer.logger.warnings[2], '[tests] FAILED android push messages.000000000000.000000000001 to testuser3: Android error message')
-        self.assertEqual(len(processed_tokens), 3)
+        self.assertEqual(len(processed_tokens), 4)
 
     @httpretty.activate
     def test_ios_failed_conversation_creation_ack(self):
@@ -402,7 +418,7 @@ class PushTests(MaxBunnyTestCase):
     # ===============================
 
     @httpretty.activate
-    def test_ios_pushdebug(self):
+    def test_ios_firebase_pushdebug(self):
         """
             Given a message with a ack from a testuser0 conversation message
             And the message has the #pushdebug hashtag
@@ -415,6 +431,7 @@ class PushTests(MaxBunnyTestCase):
         from maxbunny.tests.mockers.push import CONVERSATION_PUSHDEBUG_ACK as message
         from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
         from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS
+        from maxbunny.tests.mockers.push import FIREBASE_CONVERSATION_ACK_SUCCESS
 
         http_mock_info()
         http_mock_get_conversation_tokens(tokens=tokens)
@@ -422,17 +439,20 @@ class PushTests(MaxBunnyTestCase):
         runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
         consumer = __consumer__(runner)
         set_apns_response(CONVERSATION_ACK_SUCCESS)
+        set_fcm_response(FIREBASE_CONVERSATION_ACK_SUCCESS)
 
         processed_tokens = consumer.process(message)
 
-        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.infos), 2)
         self.assertEqual(len(consumer.logger.warnings), 0)
 
-        self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 4/4 push messages.000000000000.000000000001 to testuser0,testuser1,testuser2,testuser3')
-        self.assertEqual(len(processed_tokens), 4)
+        self.assertEqual(consumer.logger.infos[0], "[tests] RESPONSE firebase push : {'success': '3'}")
+
+        self.assertEqual(consumer.logger.infos[1], '[tests] SUCCEDED 4/4 push messages.000000000000.000000000001 to testuser0,testuser1,testuser2,testuser3')
+        self.assertEqual(len(processed_tokens), 5)
 
     @httpretty.activate
-    def test_ios_succeed(self):
+    def test_ios_firebase_succeed(self):
         """
             Given a message with a ack from a testuser0 conversation message
             And users in conversation have valid device tokens
@@ -444,6 +464,7 @@ class PushTests(MaxBunnyTestCase):
         from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
         from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
         from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS
+        from maxbunny.tests.mockers.push import FIREBASE_CONVERSATION_ACK_SUCCESS
 
         http_mock_info()
         http_mock_get_conversation_tokens(tokens=tokens)
@@ -451,17 +472,20 @@ class PushTests(MaxBunnyTestCase):
         runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
         consumer = __consumer__(runner)
         set_apns_response(CONVERSATION_ACK_SUCCESS)
+        set_fcm_response(FIREBASE_CONVERSATION_ACK_SUCCESS)
 
         processed_tokens = consumer.process(message)
 
-        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.infos), 2)
         self.assertEqual(len(consumer.logger.warnings), 0)
 
-        self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 3/3 push messages.000000000000.000000000001 to testuser1,testuser2,testuser3')
-        self.assertEqual(len(processed_tokens), 3)
+        self.assertEqual(consumer.logger.infos[0], "[tests] RESPONSE firebase push : {'success': '3'}")
+
+        self.assertEqual(consumer.logger.infos[1], '[tests] SUCCEDED 3/3 push messages.000000000000.000000000001 to testuser1,testuser2,testuser3')
+        self.assertEqual(len(processed_tokens), 4)
 
     @httpretty.activate
-    def test_ios_succeed_one_shared(self):
+    def test_ios_firebase_succeed_one_shared(self):
         """
             Given a message with a ack from a testuser0 conversation message
             And users in conversation have valid device tokens
@@ -476,6 +500,7 @@ class PushTests(MaxBunnyTestCase):
         from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
         from maxbunny.tests.mockers.push import IOS_TOKENS_ONE_SHARED as tokens
         from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS
+        from maxbunny.tests.mockers.push import FIREBASE_CONVERSATION_ACK_SUCCESS
 
         http_mock_info()
         http_mock_get_conversation_tokens(tokens=tokens)
@@ -483,19 +508,22 @@ class PushTests(MaxBunnyTestCase):
         runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
         consumer = __consumer__(runner)
         set_apns_response(CONVERSATION_ACK_SUCCESS)
+        set_fcm_response(FIREBASE_CONVERSATION_ACK_SUCCESS)
 
         processed_tokens = consumer.process(message)
 
-        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.infos), 2)
         self.assertEqual(len(consumer.logger.warnings), 1)
 
-        self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 2/2 push messages.000000000000.000000000001 to testuser1,testuser2,testuser3')
+        self.assertEqual(consumer.logger.infos[0], "[tests] RESPONSE firebase push : {'success': '3'}")
+
+        self.assertEqual(consumer.logger.infos[1], '[tests] SUCCEDED 2/2 push messages.000000000000.000000000001 to testuser1,testuser2,testuser3')
         self.assertEqual(consumer.logger.warnings[0], '[tests] ios token 0123456789abcdef000000000000000000000000000000000000000000000002 shared by testuser2,testuser3')
 
-        self.assertEqual(len(processed_tokens), 2)
+        self.assertEqual(len(processed_tokens), 3)
 
     @httpretty.activate
-    def test_ios_succeed_one_invalid(self):
+    def test_ios_firebase_succeed_one_invalid(self):
         """
             Given a message with a ack from a testuser0 conversation message
             And users in conversation have valid device tokens
@@ -510,6 +538,7 @@ class PushTests(MaxBunnyTestCase):
         from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
         from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
         from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS_ONE_INVALID
+        from maxbunny.tests.mockers.push import FIREBASE_CONVERSATION_ACK_SUCCESS_ONE_INVALID
 
         http_mock_info()
         http_mock_get_conversation_tokens(tokens=tokens)
@@ -518,18 +547,21 @@ class PushTests(MaxBunnyTestCase):
         runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
         consumer = __consumer__(runner)
         set_apns_response(CONVERSATION_ACK_SUCCESS_ONE_INVALID)
+        set_fcm_response(FIREBASE_CONVERSATION_ACK_SUCCESS_ONE_INVALID)
 
         processed_tokens = consumer.process(message)
 
-        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.infos), 2)
         self.assertEqual(len(consumer.logger.warnings), 1)
 
-        self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 2/3 push messages.000000000000.000000000001 to testuser1,testuser2')
+        self.assertEqual(consumer.logger.infos[0], "[tests] RESPONSE firebase push : {'failure': '1', 'success': '2'}")
+
+        self.assertEqual(consumer.logger.infos[1], '[tests] SUCCEDED 2/3 push messages.000000000000.000000000001 to testuser1,testuser2')
         self.assertEqual(consumer.logger.warnings[0], '[tests] FAILED ios push messages.000000000000.000000000001 to testuser3: ERR=8 Invalid Token')
-        self.assertEqual(len(processed_tokens), 3)
+        self.assertEqual(len(processed_tokens), 4)
 
     @httpretty.activate
-    def test_android_succeed(self):
+    def test_android_firebase_succeed(self):
         """
             Given a message with a ack from a testuser0 conversation message
             And users in conversation have valid device tokens
@@ -541,6 +573,7 @@ class PushTests(MaxBunnyTestCase):
         from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
         from maxbunny.tests.mockers.push import ANDROID_TOKENS as tokens
         from maxbunny.tests.mockers.push import ANDROID_ACK_SUCCESS as gcm_response
+        from maxbunny.tests.mockers.push import FIREBASE_ACK_SUCCESS as fcm_response
 
         http_mock_info()
         http_mock_get_conversation_tokens(tokens=tokens)
@@ -548,17 +581,19 @@ class PushTests(MaxBunnyTestCase):
         runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
         consumer = __consumer__(runner)
         set_gcm_response(gcm_response)
+        set_fcm_response(fcm_response)
 
         processed_tokens = consumer.process(message)
 
-        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.infos), 2)
         self.assertEqual(len(consumer.logger.warnings), 0)
 
-        self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 3/3 push messages.000000000000.000000000001 to testuser1,testuser2,testuser3')
-        self.assertEqual(len(processed_tokens), 3)
+        self.assertEqual(consumer.logger.infos[0], "[tests] RESPONSE firebase push : {'success': '3'}")
+        self.assertEqual(consumer.logger.infos[1], '[tests] SUCCEDED 3/3 push messages.000000000000.000000000001 to testuser1,testuser2,testuser3')
+        self.assertEqual(len(processed_tokens), 4)
 
     @httpretty.activate
-    def test_android_succeed_one_failed(self):
+    def test_android_firebase_succeed_one_failed(self):
         """
             Given a message with a ack from a testuser0 conversation message
             And users in conversation have valid device tokens
@@ -572,6 +607,7 @@ class PushTests(MaxBunnyTestCase):
         from maxbunny.tests.mockers.push import CONVERSATION_ACK as message
         from maxbunny.tests.mockers.push import ANDROID_TOKENS as tokens
         from maxbunny.tests.mockers.push import ANDROID_ACK_SUCCESS_ONE_FAILED as gcm_response
+        from maxbunny.tests.mockers.push import FIREBASE_ACK_SUCCESS_ONE_FAILED as fcm_response
 
         http_mock_info()
         http_mock_delete_token()
@@ -580,18 +616,20 @@ class PushTests(MaxBunnyTestCase):
         runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
         consumer = __consumer__(runner)
         set_gcm_response(gcm_response)
+        set_fcm_response(fcm_response)
 
         processed_tokens = consumer.process(message)
 
-        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.infos), 2)
         self.assertEqual(len(consumer.logger.warnings), 1)
 
-        self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 2/3 push messages.000000000000.000000000001 to testuser1,testuser2')
+        self.assertEqual(consumer.logger.infos[0], "[tests] RESPONSE firebase push : {'failure': '1', 'success': '2'}")
+        self.assertEqual(consumer.logger.infos[1], '[tests] SUCCEDED 2/3 push messages.000000000000.000000000001 to testuser1,testuser2')
         self.assertEqual(consumer.logger.warnings[0], '[tests] FAILED android push messages.000000000000.000000000001 to testuser3: Android error message')
-        self.assertEqual(len(processed_tokens), 3)
+        self.assertEqual(len(processed_tokens), 4)
 
     @httpretty.activate
-    def test_android_ios_mixed_succeed(self):
+    def test_android_ios_firebase_mixed_succeed(self):
         """
             Given a message with a ack from a testuser0 conversation message
             And users in conversation have valid device tokens
@@ -606,6 +644,7 @@ class PushTests(MaxBunnyTestCase):
         from maxbunny.tests.mockers.push import IOS_TOKENS
         from maxbunny.tests.mockers.push import ANDROID_TOKENS
         from maxbunny.tests.mockers.push import ANDROID_ACK_SUCCESS as gcm_response
+        from maxbunny.tests.mockers.push import FIREBASE_ACK_SUCCESS as fcm_response
         from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS as apns_response
 
         http_mock_info()
@@ -615,17 +654,19 @@ class PushTests(MaxBunnyTestCase):
         consumer = __consumer__(runner)
         set_gcm_response(gcm_response)
         set_apns_response(apns_response)
+        set_fcm_response(fcm_response)
 
         processed_tokens = consumer.process(message)
 
-        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.infos), 2)
         self.assertEqual(len(consumer.logger.warnings), 0)
 
-        self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 6/6 push messages.000000000000.000000000001 to testuser1,testuser2,testuser3')
-        self.assertEqual(len(processed_tokens), 6)
+        self.assertEqual(consumer.logger.infos[0], "[tests] RESPONSE firebase push : {'success': '3'}")
+        self.assertEqual(consumer.logger.infos[1], '[tests] SUCCEDED 6/6 push messages.000000000000.000000000001 to testuser1,testuser2,testuser3')
+        self.assertEqual(len(processed_tokens), 7)
 
     @httpretty.activate
-    def test_ios_succeed_conversation_creation(self):
+    def test_ios_firebase_succeed_conversation_creation(self):
         """
             Given a message with a ack from a testuser0 conversation creation
             And users in conversation have valid device tokens
@@ -637,6 +678,7 @@ class PushTests(MaxBunnyTestCase):
         from maxbunny.tests.mockers.push import CONVERSATION_CREATION_ACK as message
         from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
         from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS
+        from maxbunny.tests.mockers.push import FIREBASE_CONVERSATION_ACK_SUCCESS
 
         http_mock_info()
         http_mock_get_conversation_tokens(tokens=tokens)
@@ -644,17 +686,20 @@ class PushTests(MaxBunnyTestCase):
         runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
         consumer = __consumer__(runner)
         set_apns_response(CONVERSATION_ACK_SUCCESS)
+        set_fcm_response(FIREBASE_CONVERSATION_ACK_SUCCESS)
 
         processed_tokens = consumer.process(message)
 
-        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.infos), 2)
         self.assertEqual(len(consumer.logger.warnings), 0)
 
-        self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 3/3 push messages.000000000000.000000000001 to testuser1,testuser2,testuser3')
-        self.assertEqual(len(processed_tokens), 3)
+        self.assertEqual(consumer.logger.infos[0], "[tests] RESPONSE firebase push : {'success': '3'}")
+
+        self.assertEqual(consumer.logger.infos[1], '[tests] SUCCEDED 3/3 push messages.000000000000.000000000001 to testuser1,testuser2,testuser3')
+        self.assertEqual(len(processed_tokens), 4)
 
     @httpretty.activate
-    def test_ios_succeed_activity_creation(self):
+    def test_ios_firebase_succeed_activity_creation(self):
         """
             Given a message with a ack from a testuser0 post to a context
             And users in conversation have valid device tokens
@@ -666,6 +711,7 @@ class PushTests(MaxBunnyTestCase):
         from maxbunny.tests.mockers.push import ACTIVITY_ACK as message
         from maxbunny.tests.mockers.push import IOS_TOKENS as tokens
         from maxbunny.tests.mockers.push import CONVERSATION_ACK_SUCCESS
+        from maxbunny.tests.mockers.push import FIREBASE_CONVERSATION_ACK_SUCCESS
 
         http_mock_info()
         http_mock_get_context_tokens(tokens=tokens)
@@ -673,11 +719,14 @@ class PushTests(MaxBunnyTestCase):
         runner = MockRunner('push', 'maxbunny.ini', 'instances.ini', 'cloudapis.ini')
         consumer = __consumer__(runner)
         set_apns_response(CONVERSATION_ACK_SUCCESS)
+        set_fcm_response(FIREBASE_CONVERSATION_ACK_SUCCESS)
 
         processed_tokens = consumer.process(message)
 
-        self.assertEqual(len(consumer.logger.infos), 1)
+        self.assertEqual(len(consumer.logger.infos), 2)
         self.assertEqual(len(consumer.logger.warnings), 0)
 
-        self.assertEqual(consumer.logger.infos[0], '[tests] SUCCEDED 3/3 push activity.000000000000.000000000001 to testuser1,testuser2,testuser3')
-        self.assertEqual(len(processed_tokens), 3)
+        self.assertEqual(consumer.logger.infos[0], "[tests] RESPONSE firebase push : {'success': '3'}")
+
+        self.assertEqual(consumer.logger.infos[1], '[tests] SUCCEDED 3/3 push activity.000000000000.000000000001 to testuser1,testuser2,testuser3')
+        self.assertEqual(len(processed_tokens), 4)

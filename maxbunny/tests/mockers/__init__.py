@@ -22,3 +22,7 @@ class GCMMockResponse(object):
         self.unavailable = response.get('unavailable', [])
         self.not_registered = response.get('not_registered', [])
         self.failed = response.get('failed', {})
+
+class FCMNotificationMockResponse(object):
+    def __init__(self, response):
+        self.response = response
