@@ -12,6 +12,9 @@ from copy import deepcopy
 from gcmclient import GCM
 from gcmclient import JSONMessage
 
+from pyfcm import FCMNotification
+from bs4 import BeautifulSoup
+
 import re
 
 
@@ -25,6 +28,7 @@ class PushConsumer(BunnyConsumer):
         self.ios_session = Session()
         self.ios_push_certificate_file = runner.cloudapis.get('push', 'push_certificate_file')
         self.android_push_api_key = runner.cloudapis.get('push', 'android_push_api_key')
+        self.firebase_push_api_key = runner.cloudapis.get('push', 'firebase_push_api_key')
 
     def process(self, rabbitpy_message):
         """
@@ -84,8 +88,13 @@ class PushConsumer(BunnyConsumer):
                 tokens_by_platform[token_platform].append(token)
 
         processed_tokens = []
+
+        #Notificaciones push APP uTalk antigua
         processed_tokens += self.send_ios_push_notifications(tokens_by_platform.get('ios', []), push_message.packed)
         processed_tokens += self.send_android_push_notifications(tokens_by_platform.get('android', []), push_message.packed)
+
+        # Notificaciones push APP uTalk nueva
+        processed_tokens += self.send_firebase_push_notifications((tokens_by_platform.get('ios', []) + tokens_by_platform.get('android', [])), push_message.packed)
 
         # If we reach here, push messages had been sent without major failures
         # But may have errors on particular tokens. Let's log successes and failures of
@@ -103,22 +112,31 @@ class PushConsumer(BunnyConsumer):
 
         # Aggregate data from both success and failures
         for platform, token, error in processed_tokens:
-            token_usernames = usernames_by_token.get(token, [])
-            usernames_string = ','.join(token_usernames)
-            if len(token_usernames) > 1:
-                self.logger.warning('[{}] {} token {} shared by {}'.format(domain, platform, token, usernames_string))
+            if platform != 'firebase':
+                token_usernames = usernames_by_token.get(token, [])
+                usernames_string = ','.join(token_usernames)
+                if len(token_usernames) > 1:
+                    self.logger.warning('[{}] {} token {} shared by {}'.format(domain, platform, token, usernames_string))
 
-            if error is None:
-                succeed += token_usernames
-                succeeded_tokens += 1
+                if error is None:
+                    succeed += token_usernames
+                    succeeded_tokens += 1
+                else:
+                    #client.tokens[token].delete()
+                    failed.append((platform, usernames_string, error))
             else:
-                client.tokens[token].delete()
-                failed.append((platform, usernames_string, error))
+                #Este try solo sirve para los test de las notificaciones push
+                try:
+                    error = error.response
+                except:
+                    pass
+
+                self.logger.info('[{}] RESPONSE {} push : {}'.format(domain, platform, error))
 
         # Log once for all successes
         if succeed:
             unique_sorted_users = sorted(list(set(succeed)))
-            self.logger.info('[{}] SUCCEDED {}/{} push {} to {}'.format(domain, succeeded_tokens, len(processed_tokens), message_full_id, ','.join(unique_sorted_users)))
+            self.logger.info('[{}] SUCCEDED {}/{} push {} to {}'.format(domain, succeeded_tokens, len(processed_tokens) - 1, message_full_id, ','.join(unique_sorted_users)))
 
         for platform, username, reason in failed:
             self.logger.warning('[{}] FAILED {} push {} to {}: {}'.format(domain, platform, message_full_id, username, reason))
@@ -129,6 +147,11 @@ class PushConsumer(BunnyConsumer):
         message_object = message.get('object', None)
         if message_object is None:
             raise BunnyMessageCancel('The received message has an unknown object type')
+
+        #Como es el specification.json del maxcarrot modificamos la letra id del object comment para que llegaran ahora el objecto es una actividad
+        #para poder añadir literal a la notificación push, miro si es un comentario y asi ejecuto el process_comment_object y no el process_activity_object
+        if 'commentid' in message['data']:
+            message_object = u'comment'
 
         message_processor_method_name = 'process_{}_object'.format(message_object)
         method = getattr(self, message_processor_method_name)
@@ -141,6 +164,31 @@ class PushConsumer(BunnyConsumer):
         if message['destination'] is None:
             raise BunnyMessageCancel('The received message is not from a valid context')
 
+        values = {
+            'add': {
+                'en': [u"I\'ve added", u"I\'ve modified"],
+                'es': [u"He añadido", u"He modificado"],
+                'ca': [u"He afegit", u"He modificat"],
+            },
+        }
+        messages = {
+            'add': {
+                'en': u"I\'ve published a new activity: ".format(**message),
+                'es': u"He publicado una nueva actividad: ".format(**message),
+                'ca': u"He publicat una nova activitat: ".format(**message),
+            },
+        }
+
+        action = message.get('action', None)
+
+        # Si solo es una notificacion diretamente en el POST añadir literal "He publicado una nueva actividad: " y el texto que has añadido
+        if not message['data']['text'].startswith(tuple(values[action][client.metadata['language']])):
+            message['data']['text'] = messages[action][client.metadata['language']] + message['data']['text']
+        else:
+            # Quitar la url del bit.ly para que no aparezca en el push
+            text = re.sub(r'a http?:\/\/.*[\r\n]*', '', message['data']['text'])
+            message['data']['text'] = text
+
         tokens = client.contexts[message['destination']].tokens.get()
         message.setdefault('data', {})
         message['data']['alert'] = u'{user[displayname]}: '.format(**message)
@@ -152,6 +200,23 @@ class PushConsumer(BunnyConsumer):
         """
         if message['destination'] is None:
             raise BunnyMessageCancel('The received message is not from a valid context')
+
+        messages = {
+            'add': {
+                'en': u"Added the comment: ".format(**message),
+                'es': u"He añadido el comentario: ".format(**message),
+                'ca': u"He afegit el comentari: ".format(**message),
+            },
+        }
+
+        action = message.get('action', None)
+
+        # Si se añade un comentario, añadir en la notificación push el literal "He añadido el comentario: " + el comentario
+        try:
+            if action in ['add']:
+                message['data']['text'] = messages[action][client.metadata['language']] + message['data']['text']
+        except:
+            raise BunnyMessageCancel('Cannot find a message to rewrite {} conversation'.format(action))
 
         tokens = client.contexts[message['destination']].tokens.get()
         message.setdefault('data', {})
@@ -179,9 +244,9 @@ class PushConsumer(BunnyConsumer):
 
         messages = {
             'add': {
-                'en': u"{user[username]} started a chat".format(**message),
-                'es': u"{user[username]} ha iniciado un chat".format(**message),
-                'ca': u"{user[username]} ha iniciat un xat".format(**message),
+                'en': u"Started a chat".format(**message),
+                'es': u"Ha iniciado un chat".format(**message),
+                'ca': u"Ha iniciat un xat".format(**message),
             },
             'refresh': {
                 'en': u"You have received an image".format(**message),
@@ -191,21 +256,78 @@ class PushConsumer(BunnyConsumer):
         }
 
         action = message.get('action', None)
+
         # Temporary WORKAROUND
         # Rewrite add and refresh covnersation messages with regular text messages explaining it
         try:
             if action in ['add', 'refresh']:
                 message.action = 'ack'
                 message.object = 'message'
-                message.setdefault('data', {})
-                message['data']['text'] = messages[action][client.metadata['language']]
-                message['data']['alert'] = ''
+
+                if message['data'] == {}:
+                    message.setdefault('data', {})
+                    message['data']['text'] = messages[action][client.metadata['language']]
+                    message['data']['alert'] = ''
+                else:
+                    message['data']['text'] = message['data']['text']
+                    message['data']['alert'] = ''
         except:
             raise BunnyMessageCancel('Cannot find a message to rewrite {} conversation'.format(action))
 
         tokens = client.conversations[message['destination']].tokens.get()
 
         return message, tokens
+
+    def get_message_object(self, message):
+        message = normalize_message(RabbitMessage.unpack(message))
+        if message['user']['displayname'] == '':
+            message_title = message['user']['usernamei']
+        else:
+            message_title = message['user']['displayname']
+
+        #Ejecuto el BeautifulSoup sobre el message para quitar todos los tags html <b> <i> porque el push no los sabe mostrar
+        #He probado con *texto* para negritas como hace whatssap pero tampoco lo sabe tratar
+        if message['object'] == 'activity' and message['action'] == 'add':
+            message_body = BeautifulSoup(message['data']['text']).text
+        elif message['object'] == 'conversation' and (message['action'] == 'add' or message['action'] == 'refresh'):
+            message_body = BeautifulSoup(message['data']['text']).text
+        elif message['object'] == 'message' and (message['action'] == 'ack' or message['action'] == 'add'):
+            message_body = BeautifulSoup(message['data']['text']).text
+        else:
+            message_body = ''
+
+
+        return message_title, message_body
+
+    def send_firebase_push_notifications(self, tokens, message):
+        """
+        """
+
+        if not tokens:
+            return []
+
+        # Send the message Firebase
+        push_service = FCMNotification(api_key=self.firebase_push_api_key)
+        message_title, message_body  = self.get_message_object(message)
+
+        processed_tokens = []
+
+
+        if message_body != '':
+            data = {'message': message}
+
+            res = push_service.notify_multiple_devices(registration_ids=tokens, message_title=message_title, message_body=message_body, data_message=data, content_available=True)
+
+            # If APNS doesn't crash for unknown reasons,
+            # collect result for each push sent
+            # Exceptions caused by APNS failure or code bugs will be
+            # catched in a upper level
+
+            # OJO como por ahora en Firebase no hemos encontrado que se puedan procesar que
+            # notificaciones han fallado (tokens failed) no procesamos nada y enviamos la respuesta push
+            processed_tokens.append(('firebase', tokens, res))
+
+        return processed_tokens
 
     def send_ios_push_notifications(self, tokens, message):
         """

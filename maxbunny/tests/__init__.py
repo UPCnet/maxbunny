@@ -259,6 +259,45 @@ def set_gcm_response(response):
 
 
 # =============================================================
+#                    FCMclient Mockers
+# =============================================================
+
+fcm_response = {}
+
+
+class MockFCM(object):
+    def __init__(self, *args, **kwargs):
+        """
+            Mocks an fcmclient.FCM Server object.
+
+            When a push messages sent trough this mock, it
+            responds with a custom-defined response particular to
+            each test
+        """
+        pass
+
+    def notify_multiple_devices(self, *args, **kwargs):
+        """
+            Returns or raises an exception, as defined
+            on fcm_response global var, that must be
+            set just before using this method
+        """
+        global fcm_response
+        if isinstance(fcm_response, Exception):
+            raise fcm_response
+        else:
+            return fcm_response
+
+
+def set_fcm_response(response):
+    """
+        Sets the response that will be used on MockFCN.send calls.
+    """
+    global fcm_response
+    fcm_response = response
+
+
+# =============================================================
 #                    Maxbunny Mockers
 # =============================================================
 
