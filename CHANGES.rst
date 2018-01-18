@@ -1,11 +1,11 @@
 Changelog
 =========
 
-5.5 (unreleased)
+5.5 (2018-01-18)
 ----------------
 
-- Nothing changed yet.
-
+* Merge remote-tracking branch 'origin/develop' [Pilar Marinas]
+* Cambios para que funcione la nueva APP Utalk con notificaciones push Firebase [Pilar Marinas]
 
 5.4 (2016-11-16)
 ----------------
