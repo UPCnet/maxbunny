@@ -275,6 +275,11 @@ class PushConsumer(BunnyConsumer):
                 'en': u"You have received an image".format(**message),
                 'es': u"Has recibido una imagen".format(**message),
                 'ca': u"Has rebut una imatge".format(**message),
+            },
+            'image': {
+                'en': u"Image".format(**message),
+                'es': u"Imagen".format(**message),
+                'ca': u"Imatge".format(**message),
             }
         }
 
@@ -292,8 +297,16 @@ class PushConsumer(BunnyConsumer):
                     message['data']['text'] = messages[action][client.metadata['language']]
                     message['data']['alert'] = ''
                 else:
-                    message['data']['text'] = message['data']['text']
-                    message['data']['alert'] = ''
+                    if message['data']['conversation_id']:
+                        if message['data']['text'] == u'Add image':
+                            message['data']['text'] = messages['image'][client.metadata['language']]
+                            message['data']['alert'] = u'{user[displayname]}: '.format(**message)
+                        else:
+                            message['data']['text'] = message['data']['creator'] + ': ' + message['data']['text']
+                            message['data']['alert'] = u'{user[displayname]}: '.format(**message)
+                    else:
+                        message['data']['text'] = message['data']['text']
+                        message['data']['alert'] = ''
         except:
             raise BunnyMessageCancel('Cannot find a message to rewrite {} conversation'.format(action))
 
