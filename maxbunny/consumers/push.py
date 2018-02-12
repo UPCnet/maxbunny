@@ -177,21 +177,31 @@ class PushConsumer(BunnyConsumer):
                 'es': u"He publicado una nueva actividad: ".format(**message),
                 'ca': u"He publicat una nova activitat: ".format(**message),
             },
+            'image': {
+                'en': u"Image".format(**message),
+                'es': u"Imagen".format(**message),
+                'ca': u"Imatge".format(**message),
+            }
         }
 
         action = message.get('action', None)
 
-        # Si solo es una notificacion diretamente en el POST añadir literal "He publicado una nueva actividad: " y el texto que has añadido
-        if not message['data']['text'].startswith(tuple(values[action][client.metadata['language']])):
-            message['data']['text'] = messages[action][client.metadata['language']] + message['data']['text']
+        if message['data']['text'] == u'Add image':
+            message['data']['text'] = messages['image'][client.metadata['language']]
+            message['data']['alert'] = u'{user[displayname]}: '.format(**message)
         else:
-            # Quitar la url del bit.ly para que no aparezca en el push
-            text = re.sub(r'a http?:\/\/.*[\r\n]*', '', message['data']['text'])
-            message['data']['text'] = text
+            # Si solo es una notificacion diretamente en el POST añadir literal "He publicado una nueva actividad: " y el texto que has añadido
+            if not message['data']['text'].startswith(tuple(values[action][client.metadata['language']])):
+                message['data']['text'] = messages[action][client.metadata['language']] + message['data']['text']
+            else:
+                # Quitar la url del bit.ly para que no aparezca en el push
+                text = re.sub(r'a http?:\/\/.*[\r\n]*', '', message['data']['text'])
+                message['data']['text'] = text
+
+            message.setdefault('data', {})
+            message['data']['alert'] = u'{user[displayname]}: '.format(**message)
 
         tokens = client.contexts[message['destination']].tokens.get()
-        message.setdefault('data', {})
-        message['data']['alert'] = u'{user[displayname]}: '.format(**message)
         return message, tokens
 
     def process_comment_object(self, message, client):
