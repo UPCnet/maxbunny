@@ -230,9 +230,22 @@ class PushConsumer(BunnyConsumer):
         if message['destination'] is None:
             raise BunnyMessageCancel('The received message is not from a valid conversation')
 
+        messages = {
+            'image': {
+                'en': u"Image".format(**message),
+                'es': u"Imagen".format(**message),
+                'ca': u"Imatge".format(**message),
+            }
+        }
+
+        if message['data']['text'] == u'Add image':
+            message['data']['text'] = messages['image'][client.metadata['language']]
+            message['data']['alert'] = u'{user[displayname]}: '.format(**message)
+        else:
+            message.setdefault('data', {})
+            message['data']['alert'] = u'{user[displayname]}: '.format(**message)
+
         tokens = client.conversations[message['destination']].tokens.get()
-        message.setdefault('data', {})
-        message['data']['alert'] = u'{user[displayname]}: '.format(**message)
         return message, tokens
 
     def process_conversation_object(self, message, client):
@@ -281,7 +294,7 @@ class PushConsumer(BunnyConsumer):
     def get_message_object(self, message):
         message = normalize_message(RabbitMessage.unpack(message))
         if message['user']['displayname'] == '':
-            message_title = message['user']['usernamei']
+            message_title = message['user']['username']
         else:
             message_title = message['user']['displayname']
 
