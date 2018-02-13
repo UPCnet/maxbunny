@@ -297,7 +297,7 @@ class PushConsumer(BunnyConsumer):
                     message['data']['text'] = messages[action][client.metadata['language']]
                     message['data']['alert'] = ''
                 else:
-                    if message['data']['conversation_id']:
+                    if 'conversation_id' in message['data']:
                         if message['data']['text'] == u'Add image':
                             message['data']['text'] = messages['image'][client.metadata['language']]
                             message['data']['alert'] = u'{user[displayname]}: '.format(**message)
