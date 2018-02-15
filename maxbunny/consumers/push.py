@@ -177,21 +177,31 @@ class PushConsumer(BunnyConsumer):
                 'es': u"He publicado una nueva actividad: ".format(**message),
                 'ca': u"He publicat una nova activitat: ".format(**message),
             },
+            'image': {
+                'en': u"Image".format(**message),
+                'es': u"Imagen".format(**message),
+                'ca': u"Imatge".format(**message),
+            }
         }
 
         action = message.get('action', None)
 
-        # Si solo es una notificacion diretamente en el POST añadir literal "He publicado una nueva actividad: " y el texto que has añadido
-        if not message['data']['text'].startswith(tuple(values[action][client.metadata['language']])):
-            message['data']['text'] = messages[action][client.metadata['language']] + message['data']['text']
+        if message['data']['text'] == u'Add image':
+            message['data']['text'] = messages['image'][client.metadata['language']]
+            message['data']['alert'] = u'{user[displayname]}: '.format(**message)
         else:
-            # Quitar la url del bit.ly para que no aparezca en el push
-            text = re.sub(r'a http?:\/\/.*[\r\n]*', '', message['data']['text'])
-            message['data']['text'] = text
+            # Si solo es una notificacion diretamente en el POST añadir literal "He publicado una nueva actividad: " y el texto que has añadido
+            if not message['data']['text'].startswith(tuple(values[action][client.metadata['language']])):
+                message['data']['text'] = messages[action][client.metadata['language']] + message['data']['text']
+            else:
+                # Quitar la url del bit.ly para que no aparezca en el push
+                text = re.sub(r'a http?:\/\/.*[\r\n]*', '', message['data']['text'])
+                message['data']['text'] = text
+
+            message.setdefault('data', {})
+            message['data']['alert'] = u'{user[displayname]}: '.format(**message)
 
         tokens = client.contexts[message['destination']].tokens.get()
-        message.setdefault('data', {})
-        message['data']['alert'] = u'{user[displayname]}: '.format(**message)
         return message, tokens
 
     def process_comment_object(self, message, client):
@@ -230,9 +240,22 @@ class PushConsumer(BunnyConsumer):
         if message['destination'] is None:
             raise BunnyMessageCancel('The received message is not from a valid conversation')
 
+        messages = {
+            'image': {
+                'en': u"Image".format(**message),
+                'es': u"Imagen".format(**message),
+                'ca': u"Imatge".format(**message),
+            }
+        }
+
+        if message['data']['text'] == u'Add image':
+            message['data']['text'] = messages['image'][client.metadata['language']]
+            message['data']['alert'] = u'{user[displayname]}: '.format(**message)
+        else:
+            message.setdefault('data', {})
+            message['data']['alert'] = u'{user[displayname]}: '.format(**message)
+
         tokens = client.conversations[message['destination']].tokens.get()
-        message.setdefault('data', {})
-        message['data']['alert'] = u'{user[displayname]}: '.format(**message)
         return message, tokens
 
     def process_conversation_object(self, message, client):
@@ -252,6 +275,11 @@ class PushConsumer(BunnyConsumer):
                 'en': u"You have received an image".format(**message),
                 'es': u"Has recibido una imagen".format(**message),
                 'ca': u"Has rebut una imatge".format(**message),
+            },
+            'image': {
+                'en': u"Image".format(**message),
+                'es': u"Imagen".format(**message),
+                'ca': u"Imatge".format(**message),
             }
         }
 
@@ -269,8 +297,16 @@ class PushConsumer(BunnyConsumer):
                     message['data']['text'] = messages[action][client.metadata['language']]
                     message['data']['alert'] = ''
                 else:
-                    message['data']['text'] = message['data']['text']
-                    message['data']['alert'] = ''
+                    if 'conversation_id' in message['data']:
+                        if message['data']['text'] == u'Add image':
+                            message['data']['text'] = messages['image'][client.metadata['language']]
+                            message['data']['alert'] = u'{user[displayname]}: '.format(**message)
+                        else:
+                            message['data']['text'] = message['data']['creator'] + ': ' + message['data']['text']
+                            message['data']['alert'] = u'{user[displayname]}: '.format(**message)
+                    else:
+                        message['data']['text'] = message['data']['text']
+                        message['data']['alert'] = ''
         except:
             raise BunnyMessageCancel('Cannot find a message to rewrite {} conversation'.format(action))
 
@@ -281,7 +317,7 @@ class PushConsumer(BunnyConsumer):
     def get_message_object(self, message):
         message = normalize_message(RabbitMessage.unpack(message))
         if message['user']['displayname'] == '':
-            message_title = message['user']['usernamei']
+            message_title = message['user']['username']
         else:
             message_title = message['user']['displayname']
 
