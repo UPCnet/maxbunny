@@ -1,11 +1,14 @@
 Changelog
 =========
 
-5.6 (unreleased)
+5.6 (2018-02-15)
 ----------------
 
-- Nothing changed yet.
-
+* Merge remote-tracking branch 'origin/develop' [Pilar Marinas]
+* Resolve error test [Pilar Marinas]
+* Display name of group in Push notification [Pilar Marinas]
+* Text Push Add image in activity [Pilar Marinas]
+* Text Push Add image [Pilar Marinas]
 
 5.5 (2018-01-18)
 ----------------
