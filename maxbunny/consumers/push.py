@@ -352,7 +352,13 @@ class PushConsumer(BunnyConsumer):
         if message_body != '':
             data = {'message': message}
 
-            res = push_service.notify_multiple_devices(registration_ids=tokens, message_title=message_title, message_body=message_body, data_message=data, content_available=True)
+            res = push_service.notify_multiple_devices(
+                registration_ids=tokens,
+                message_title=message_title,
+                message_body=message_body,
+                data_message=data,
+                content_available=True,
+                sound='default')
 
             # If APNS doesn't crash for unknown reasons,
             # collect result for each push sent
