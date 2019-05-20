@@ -1,11 +1,10 @@
 Changelog
 =========
 
-5.7 (unreleased)
+5.7 (2019-05-20)
 ----------------
 
-- Nothing changed yet.
-
+* Sonido en la notificacion push firebase [Pilar Marinas]
 
 5.6 (2018-02-15)
 ----------------
