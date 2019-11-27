@@ -90,8 +90,8 @@ class PushConsumer(BunnyConsumer):
         processed_tokens = []
 
         #Notificaciones push APP uTalk antigua
-        processed_tokens += self.send_ios_push_notifications(tokens_by_platform.get('ios', []), push_message.packed)
-        processed_tokens += self.send_android_push_notifications(tokens_by_platform.get('android', []), push_message.packed)
+        #processed_tokens += self.send_ios_push_notifications(tokens_by_platform.get('ios', []), push_message.packed)
+        #processed_tokens += self.send_android_push_notifications(tokens_by_platform.get('android', []), push_message.packed)
 
         # Notificaciones push APP uTalk nueva
         processed_tokens += self.send_firebase_push_notifications((tokens_by_platform.get('ios', []) + tokens_by_platform.get('android', [])), push_message.packed)
