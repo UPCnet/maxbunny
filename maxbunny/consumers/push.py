@@ -332,6 +332,9 @@ class PushConsumer(BunnyConsumer):
         else:
             message_body = ''
 
+        if message_body != '':
+            if len(message_body) > 100:
+                message_body = message_body[:100] + '...'
 
         return message_title, message_body
 
