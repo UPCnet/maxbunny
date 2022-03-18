@@ -1,11 +1,12 @@
 Changelog
 =========
 
-5.8 (unreleased)
+5.8 (2022-03-18)
 ----------------
 
-- Nothing changed yet.
-
+* Acortar mensaje para solucionar que Firebase no envie notificación push si el MessageTooBig [Pilar Marinas]
+* Test push modificados porque ya no funciona el Google Cloud Messaging (GCM) van todos por Firebase Cloud Messaging (FCM) [Pilar Marinas]
+* Comentado que no envie notificaciones push APP uTalk antigua certificados ios y android caducados [pilar.marinas]
 
 5.7 (2019-05-20)
 ----------------
