@@ -216,12 +216,14 @@ class BunnyConsumer(object):
 
         error_log = traceback.format_exc()
 
-        if notify:
-            send_drop_traceback(
-                self.mail_settings,
-                self.name,
-                error_log,
-                message)
+        # Comentado que no envie la notificacion por mail si el mensaje ha sido descartado
+        # tiquet 1230432 comentan que con el log es suficiente
+        # if notify:
+        #     send_drop_traceback(
+        #         self.mail_settings,
+        #         self.name,
+        #         error_log,
+        #         message)
 
     def requeue(self, message, error_message):
         """
