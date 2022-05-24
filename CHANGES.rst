@@ -1,11 +1,10 @@
 Changelog
 =========
 
-5.10 (unreleased)
+5.10 (2022-05-24)
 -----------------
 
-- Nothing changed yet.
-
+* No enviar mail MaxBunny message DROPPED [Pilar Marinas]
 
 5.9 (2022-04-29)
 ----------------
