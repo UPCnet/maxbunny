@@ -16,7 +16,8 @@ requires = [
     'gcm-client',
     'rabbitpy',
     'gevent',
-    'pyfcm'
+    'pyfcm',
+    'firebase-admin==3.2.1'
 ]
 
 setup(name='maxbunny',

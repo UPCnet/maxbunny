@@ -26,9 +26,11 @@ class PushConsumer(BunnyConsumer):
 
     def configure(self, runner):
         self.ios_session = Session()
-        self.ios_push_certificate_file = runner.cloudapis.get('push', 'push_certificate_file')
+        self.ios_push_certificate_file = runner.cloudapis.get(
+            'push', 'push_certificate_file')
         self.android_push_api_key = runner.cloudapis.get('push', 'android_push_api_key')
-        self.firebase_push_api_key = runner.cloudapis.get('push', 'firebase_push_api_key')
+        self.firebase_push_api_key = runner.cloudapis.get(
+            'push', 'firebase_push_api_key')
 
     def process(self, rabbitpy_message):
         """
@@ -58,8 +60,10 @@ class PushConsumer(BunnyConsumer):
         client = self.get_domain_client(domain)
 
         # Forward the routing key to the mobile apps as "destination" field
-        match_destination = re.match(r'(\w+).?(?:messages|notifications)?', rabbitpy_message.routing_key)
-        message['destination'] = match_destination.groups()[0] if match_destination else None
+        match_destination = re.match(
+            r'(\w+).?(?:messages|notifications)?', rabbitpy_message.routing_key)
+        message['destination'] = match_destination.groups()[
+            0] if match_destination else None
 
         push_message, tokens = self.handle_message(message, client)
 
@@ -89,12 +93,13 @@ class PushConsumer(BunnyConsumer):
 
         processed_tokens = []
 
-        #Notificaciones push APP uTalk antigua
-        #processed_tokens += self.send_ios_push_notifications(tokens_by_platform.get('ios', []), push_message.packed)
-        #processed_tokens += self.send_android_push_notifications(tokens_by_platform.get('android', []), push_message.packed)
+        # Notificaciones push APP uTalk antigua
+        # processed_tokens += self.send_ios_push_notifications(tokens_by_platform.get('ios', []), push_message.packed)
+        # processed_tokens += self.send_android_push_notifications(tokens_by_platform.get('android', []), push_message.packed)
 
         # Notificaciones push APP uTalk nueva
-        processed_tokens += self.send_firebase_push_notifications((tokens_by_platform.get('ios', []) + tokens_by_platform.get('android', [])), push_message.packed)
+        processed_tokens += self.send_firebase_push_notifications((tokens_by_platform.get(
+            'ios', []) + tokens_by_platform.get('android', [])), push_message.packed)
 
         # If we reach here, push messages had been sent without major failures
         # But may have errors on particular tokens. Let's log successes and failures of
@@ -116,30 +121,36 @@ class PushConsumer(BunnyConsumer):
                 token_usernames = usernames_by_token.get(token, [])
                 usernames_string = ','.join(token_usernames)
                 if len(token_usernames) > 1:
-                    self.logger.warning('[{}] {} token {} shared by {}'.format(domain, platform, token, usernames_string))
+                    self.logger.warning(
+                        '[{}] {} token {} shared by {}'.format(
+                            domain, platform, token, usernames_string))
 
                 if error is None:
                     succeed += token_usernames
                     succeeded_tokens += 1
                 else:
-                    #client.tokens[token].delete()
+                    # client.tokens[token].delete()
                     failed.append((platform, usernames_string, error))
             else:
-                #Este try solo sirve para los test de las notificaciones push
+                # Este try solo sirve para los test de las notificaciones push
                 try:
                     error = error.response
                 except:
                     pass
 
-                self.logger.info('[{}] RESPONSE {} push : {}'.format(domain, platform, error))
+                self.logger.info('[{}] RESPONSE {} push : {}'.format(
+                    domain, platform, error))
 
         # Log once for all successes
         if succeed:
             unique_sorted_users = sorted(list(set(succeed)))
-            self.logger.info('[{}] SUCCEDED {}/{} push {} to {}'.format(domain, succeeded_tokens, len(processed_tokens) - 1, message_full_id, ','.join(unique_sorted_users)))
+            self.logger.info('[{}] SUCCEDED {}/{} push {} to {}'.format(
+                domain, succeeded_tokens, len(processed_tokens) - 1,
+                message_full_id, ','.join(unique_sorted_users)))
 
         for platform, username, reason in failed:
-            self.logger.warning('[{}] FAILED {} push {} to {}: {}'.format(domain, platform, message_full_id, username, reason))
+            self.logger.warning('[{}] FAILED {} push {} to {}: {}'.format(
+                domain, platform, message_full_id, username, reason))
 
         return processed_tokens
 
@@ -148,8 +159,8 @@ class PushConsumer(BunnyConsumer):
         if message_object is None:
             raise BunnyMessageCancel('The received message has an unknown object type')
 
-        #Como es el specification.json del maxcarrot modificamos la letra id del object comment para que llegaran ahora el objecto es una actividad
-        #para poder añadir literal a la notificación push, miro si es un comentario y asi ejecuto el process_comment_object y no el process_activity_object
+        # Como es el specification.json del maxcarrot modificamos la letra id del object comment para que llegaran ahora el objecto es una actividad
+        # para poder añadir literal a la notificación push, miro si es un comentario y asi ejecuto el process_comment_object y no el process_activity_object
         if 'commentid' in message['data']:
             message_object = u'comment'
 
@@ -181,6 +192,11 @@ class PushConsumer(BunnyConsumer):
                 'en': u"Image".format(**message),
                 'es': u"Imagen".format(**message),
                 'ca': u"Imatge".format(**message),
+            },
+            'file': {
+                'en': u"File".format(**message),
+                'es': u"Fichero".format(**message),
+                'ca': u"Fitxer".format(**message),
             }
         }
 
@@ -189,10 +205,15 @@ class PushConsumer(BunnyConsumer):
         if message['data']['text'] == u'Add image':
             message['data']['text'] = messages['image'][client.metadata['language']]
             message['data']['alert'] = u'{user[displayname]}: '.format(**message)
+        elif message['data']['text'] == u'Add file':
+            message['data']['text'] = messages['file'][client.metadata['language']]
+            message['data']['alert'] = u'{user[displayname]}: '.format(**message)
         else:
             # Si solo es una notificacion diretamente en el POST añadir literal "He publicado una nueva actividad: " y el texto que has añadido
-            if not message['data']['text'].startswith(tuple(values[action][client.metadata['language']])):
-                message['data']['text'] = messages[action][client.metadata['language']] + message['data']['text']
+            if not message['data']['text'].startswith(
+                    tuple(values[action][client.metadata['language']])):
+                message['data']['text'] = messages[action][
+                    client.metadata['language']] + message['data']['text']
             else:
                 # Quitar la url del bit.ly para que no aparezca en el push
                 text = re.sub(r'a http?:\/\/.*[\r\n]*', '', message['data']['text'])
@@ -224,9 +245,11 @@ class PushConsumer(BunnyConsumer):
         # Si se añade un comentario, añadir en la notificación push el literal "He añadido el comentario: " + el comentario
         try:
             if action in ['add']:
-                message['data']['text'] = messages[action][client.metadata['language']] + message['data']['text']
+                message['data']['text'] = messages[action][
+                    client.metadata['language']] + message['data']['text']
         except:
-            raise BunnyMessageCancel('Cannot find a message to rewrite {} conversation'.format(action))
+            raise BunnyMessageCancel(
+                'Cannot find a message to rewrite {} conversation'.format(action))
 
         tokens = client.contexts[message['destination']].tokens.get()
         message.setdefault('data', {})
@@ -238,18 +261,27 @@ class PushConsumer(BunnyConsumer):
             Message from a conversation
         """
         if message['destination'] is None:
-            raise BunnyMessageCancel('The received message is not from a valid conversation')
+            raise BunnyMessageCancel(
+                'The received message is not from a valid conversation')
 
         messages = {
             'image': {
                 'en': u"Image".format(**message),
                 'es': u"Imagen".format(**message),
                 'ca': u"Imatge".format(**message),
+            },
+            'file': {
+                'en': u"File".format(**message),
+                'es': u"Fichero".format(**message),
+                'ca': u"Fitxer".format(**message),
             }
         }
 
         if message['data']['text'] == u'Add image':
             message['data']['text'] = messages['image'][client.metadata['language']]
+            message['data']['alert'] = u'{user[displayname]}: '.format(**message)
+        elif message['data']['text'] == u'Add file':
+            message['data']['text'] = messages['file'][client.metadata['language']]
             message['data']['alert'] = u'{user[displayname]}: '.format(**message)
         else:
             message.setdefault('data', {})
@@ -263,7 +295,8 @@ class PushConsumer(BunnyConsumer):
             Conversation creation object
         """
         if message['destination'] is None:
-            raise BunnyMessageCancel('The received message is not from a valid conversation')
+            raise BunnyMessageCancel(
+                'The received message is not from a valid conversation')
 
         messages = {
             'add': {
@@ -280,6 +313,11 @@ class PushConsumer(BunnyConsumer):
                 'en': u"Image".format(**message),
                 'es': u"Imagen".format(**message),
                 'ca': u"Imatge".format(**message),
+            },
+            'file': {
+                'en': u"File".format(**message),
+                'es': u"Fichero".format(**message),
+                'ca': u"Fitxer".format(**message),
             }
         }
 
@@ -294,21 +332,31 @@ class PushConsumer(BunnyConsumer):
 
                 if message['data'] == {}:
                     message.setdefault('data', {})
-                    message['data']['text'] = messages[action][client.metadata['language']]
+                    message['data']['text'] = messages[action][
+                        client.metadata['language']]
                     message['data']['alert'] = ''
                 else:
                     if 'conversation_id' in message['data']:
                         if message['data']['text'] == u'Add image':
-                            message['data']['text'] = messages['image'][client.metadata['language']]
-                            message['data']['alert'] = u'{user[displayname]}: '.format(**message)
+                            message['data']['text'] = messages['image'][
+                                client.metadata['language']]
+                            message['data']['alert'] = u'{user[displayname]}: '.format(
+                                **message)
+                        elif message['data']['text'] == u'Add file':
+                            message['data']['text'] = messages['file'][
+                                client.metadata['language']]
+                            message['data']['alert'] = u'{user[displayname]}: '.format(
+                                **message)
                         else:
                             message['data']['text'] = message['data']['creator'] + ': ' + message['data']['text']
-                            message['data']['alert'] = u'{user[displayname]}: '.format(**message)
+                            message['data']['alert'] = u'{user[displayname]}: '.format(
+                                **message)
                     else:
                         message['data']['text'] = message['data']['text']
                         message['data']['alert'] = ''
         except:
-            raise BunnyMessageCancel('Cannot find a message to rewrite {} conversation'.format(action))
+            raise BunnyMessageCancel(
+                'Cannot find a message to rewrite {} conversation'.format(action))
 
         tokens = client.conversations[message['destination']].tokens.get()
 
@@ -321,8 +369,8 @@ class PushConsumer(BunnyConsumer):
         else:
             message_title = message['user']['displayname']
 
-        #Ejecuto el BeautifulSoup sobre el message para quitar todos los tags html <b> <i> porque el push no los sabe mostrar
-        #He probado con *texto* para negritas como hace whatssap pero tampoco lo sabe tratar
+        # Ejecuto el BeautifulSoup sobre el message para quitar todos los tags html <b> <i> porque el push no los sabe mostrar
+        # He probado con *texto* para negritas como hace whatssap pero tampoco lo sabe tratar
         if message['object'] == 'activity' and message['action'] == 'add':
             message_body = BeautifulSoup(message['data']['text']).text
         elif message['object'] == 'conversation' and (message['action'] == 'add' or message['action'] == 'refresh'):
@@ -347,10 +395,9 @@ class PushConsumer(BunnyConsumer):
 
         # Send the message Firebase
         push_service = FCMNotification(api_key=self.firebase_push_api_key)
-        message_title, message_body  = self.get_message_object(message)
+        message_title, message_body = self.get_message_object(message)
 
         processed_tokens = []
-
 
         if message_body != '':
             data = {'message': message}
@@ -381,7 +428,8 @@ class PushConsumer(BunnyConsumer):
             return []
 
         # Remove unvalid tokens
-        sanitized_tokens = [token for token in tokens if re.match(r'^[a-fA-F0-9]{64}$', token, re.IGNORECASE)]
+        sanitized_tokens = [token for token in tokens if re.match(
+            r'^[a-fA-F0-9]{64}$', token, re.IGNORECASE)]
 
         # Remove unnecessary fields
         extra = deepcopy(message)
@@ -398,7 +446,8 @@ class PushConsumer(BunnyConsumer):
             extra=extra)
 
         # Send the message.
-        con = self.ios_session.get_connection("push_production", cert_file=self.ios_push_certificate_file)
+        con = self.ios_session.get_connection(
+            "push_production", cert_file=self.ios_push_certificate_file)
         srv = APNs(con)
         res = srv.send(push_message)
 
@@ -411,7 +460,8 @@ class PushConsumer(BunnyConsumer):
 
         for token in tokens:
             if token in res.failed:
-                processed_tokens.append(('ios', token, 'ERR={} {}'.format(*res.failed[token])))
+                processed_tokens.append(
+                    ('ios', token, 'ERR={} {}'.format(*res.failed[token])))
             else:
                 processed_tokens.append(('ios', token, None))
 
@@ -472,5 +522,6 @@ class PushConsumer(BunnyConsumer):
                 # Update registration ids
 
         return processed_tokens
+
 
 __consumer__ = PushConsumer
