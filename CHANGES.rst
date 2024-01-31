@@ -1,11 +1,10 @@
 Changelog
 =========
 
-5.11 (unreleased)
+5.11 (2024-01-31)
 -----------------
 
-- Nothing changed yet.
-
+* Tratar files en maxbunny [Alberto Durán]
 
 5.10 (2022-05-24)
 -----------------
