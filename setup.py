@@ -17,7 +17,7 @@ requires = [
     'rabbitpy',
     'gevent',
     'pyfcm',
-    'firebase-admin==3.2.1'
+    'firebase-admin'
 ]
 
 setup(name='maxbunny',

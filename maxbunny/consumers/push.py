@@ -5,17 +5,20 @@ from maxbunny.utils import extract_domain
 from maxbunny.utils import normalize_message
 from maxcarrot.message import RabbitMessage
 
-from apnsclient import APNs
-from apnsclient import Message
-from apnsclient import Session
-from copy import deepcopy
-from gcmclient import GCM
-from gcmclient import JSONMessage
+# from apnsclient import APNs
+# from apnsclient import Message
+# from apnsclient import Session
+# from copy import deepcopy
+# from gcmclient import GCM
+# from gcmclient import JSONMessage
 
 from pyfcm import FCMNotification
 from bs4 import BeautifulSoup
-
 import re
+
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import messaging
 
 
 class PushConsumer(BunnyConsumer):
@@ -25,17 +28,28 @@ class PushConsumer(BunnyConsumer):
     queue = 'push'
 
     def configure(self, runner):
-        self.ios_session = Session()
-        self.ios_push_certificate_file = runner.cloudapis.get(
-            'push', 'push_certificate_file')
-        self.android_push_api_key = runner.cloudapis.get('push', 'android_push_api_key')
+        # self.ios_session = Session()
+        # self.ios_push_certificate_file = runner.cloudapis.get(
+        #    'push', 'push_certificate_file')
+        # self.android_push_api_key = runner.cloudapis.get(
+        #    'push', 'android_push_api_key')
+        # Deprecated on 1st July 2024
         self.firebase_push_api_key = runner.cloudapis.get(
             'push', 'firebase_push_api_key')
+        # Deprecated on 1st July 2024
+
+        # base_path = os.path.abspath(os.path.dirname(__file__))
+        self.firebase_file_path = runner.cloudapis.get(
+            'push', 'firebase_file_path')
+
+        cred = credentials.Certificate(self.firebase_file_path)
+        firebase_admin.initialize_app(cred)
 
     def process(self, rabbitpy_message):
         """
         """
-        if not self.ios_push_certificate_file and not self.android_push_api_key:
+        # if not self.ios_push_certificate_file and not self.android_push_api_key:
+        if not self.firebase_file_path:
             raise BunnyMessageCancel('PUSH keys not configured')
 
         packed_message = rabbitpy_message.json()
@@ -98,8 +112,10 @@ class PushConsumer(BunnyConsumer):
         # processed_tokens += self.send_android_push_notifications(tokens_by_platform.get('android', []), push_message.packed)
 
         # Notificaciones push APP uTalk nueva
-        processed_tokens += self.send_firebase_push_notifications((tokens_by_platform.get(
-            'ios', []) + tokens_by_platform.get('android', [])), push_message.packed)
+        processed_tokens += self.send_firebase_push_notifications(
+            (tokens_by_platform.get('ios', []) +
+             tokens_by_platform.get('android', [])),
+            push_message.packed)
 
         # If we reach here, push messages had been sent without major failures
         # But may have errors on particular tokens. Let's log successes and failures of
@@ -386,7 +402,56 @@ class PushConsumer(BunnyConsumer):
 
         return message_title, message_body
 
+    # def send_firebase_push_notifications(self, tokens, message):
+    #     if not tokens:
+    #         return []
+
+    #     processed_tokens = []
+    #     # Dividir los tokens en grupos de 500
+    #     token_groups = [tokens[i:i+500] for i in range(0, len(tokens), 500)]
+
+    #     for group in token_groups:
+    #         # Crear el mensaje de notificación
+    #         message_title, message_body = self.get_message_object(message)
+    #         message = messaging.MulticastMessage(
+    #             notification=messaging.Notification(
+    #                 title=message_title,
+    #                 body=message_body
+    #             ),
+    #             tokens=group
+    #         )
+
+    #         # Enviar la notificación
+    #         response = messaging.send_multicast(message)
+    #         processed_tokens.append(('firebase', group, response))
+
+    #     return processed_tokens
+
     def send_firebase_push_notifications(self, tokens, message):
+        if not tokens:
+            return []
+
+        processed_tokens = []
+
+        for token in tokens:
+            # Crear el mensaje de notificación
+            message_title, message_body = self.get_message_object(message)
+            msg_push = messaging.Message(
+                notification=messaging.Notification(
+                    title=message_title,
+                    body=message_body
+                ),
+                data=message['d'],
+                token=token
+            )
+
+            # Enviar la notificación
+            response = messaging.send(msg_push)
+
+        processed_tokens.append(('firebase', tokens, response))
+        return processed_tokens
+
+    def send_firebase_push_notifications_deprecated(self, tokens, message):
         """
         """
 
@@ -410,118 +475,111 @@ class PushConsumer(BunnyConsumer):
                 content_available=True,
                 sound='default')
 
-            # If APNS doesn't crash for unknown reasons,
-            # collect result for each push sent
-            # Exceptions caused by APNS failure or code bugs will be
-            # catched in a upper level
-
-            # OJO como por ahora en Firebase no hemos encontrado que se puedan procesar que
-            # notificaciones han fallado (tokens failed) no procesamos nada y enviamos la respuesta push
             processed_tokens.append(('firebase', tokens, res))
 
         return processed_tokens
 
-    def send_ios_push_notifications(self, tokens, message):
-        """
-        """
-        if not tokens:
-            return []
+    # def send_ios_push_notifications(self, tokens, message):
+    #     """
+    #     """
+    #     if not tokens:
+    #         return []
 
-        # Remove unvalid tokens
-        sanitized_tokens = [token for token in tokens if re.match(
-            r'^[a-fA-F0-9]{64}$', token, re.IGNORECASE)]
+    #     # Remove unvalid tokens
+    #     sanitized_tokens = [token for token in tokens if re.match(
+    #         r'^[a-fA-F0-9]{64}$', token, re.IGNORECASE)]
 
-        # Remove unnecessary fields
-        extra = deepcopy(message)
-        extra.pop('d', None)        # Remove data field
-        extra.pop('g', None)        # Remove uuid field
-        extra['u'].pop('d', None)   # Remove displayname field
+    #     # Remove unnecessary fields
+    #     extra = deepcopy(message)
+    #     extra.pop('d', None)        # Remove data field
+    #     extra.pop('g', None)        # Remove uuid field
+    #     extra['u'].pop('d', None)   # Remove displayname field
 
-        # Prepare the push message
-        push_message = Message(
-            sanitized_tokens,
-            alert=message['d']['alert'] + message['d']['text'],
-            badge=1,
-            sound='default',
-            extra=extra)
+    #     # Prepare the push message
+    #     push_message = Message(
+    #         sanitized_tokens,
+    #         alert=message['d']['alert'] + message['d']['text'],
+    #         badge=1,
+    #         sound='default',
+    #         extra=extra)
 
-        # Send the message.
-        con = self.ios_session.get_connection(
-            "push_production", cert_file=self.ios_push_certificate_file)
-        srv = APNs(con)
-        res = srv.send(push_message)
+    #     # Send the message.
+    #     con = self.ios_session.get_connection(
+    #         "push_production", cert_file=self.ios_push_certificate_file)
+    #     srv = APNs(con)
+    #     res = srv.send(push_message)
 
-        # If APNS doesn't crash for unknown reasons,
-        # collect result for each push sent
-        # Exceptions caused by APNS failure or code bugs will be
-        # catched in a upper level
+    #     # If APNS doesn't crash for unknown reasons,
+    #     # collect result for each push sent
+    #     # Exceptions caused by APNS failure or code bugs will be
+    #     # catched in a upper level
 
-        processed_tokens = []
+    #     processed_tokens = []
 
-        for token in tokens:
-            if token in res.failed:
-                processed_tokens.append(
-                    ('ios', token, 'ERR={} {}'.format(*res.failed[token])))
-            else:
-                processed_tokens.append(('ios', token, None))
+    #     for token in tokens:
+    #         if token in res.failed:
+    #             processed_tokens.append(
+    #                 ('ios', token, 'ERR={} {}'.format(*res.failed[token])))
+    #         else:
+    #             processed_tokens.append(('ios', token, None))
 
-        return processed_tokens
+    #     return processed_tokens
 
-    def send_android_push_notifications(self, tokens, message):
-        """
-        """
-        if not tokens:
-            return []
+    # def send_android_push_notifications(self, tokens, message):
+    #     """
+    #     """
+    #     if not tokens:
+    #         return []
 
-        # Prepare push message
-        data = {'message': message, 'int': 10}
-        multicast = JSONMessage(tokens, data, collapse_key='my.key', dry_run=False)
+    #     # Prepare push message
+    #     data = {'message': message, 'int': 10}
+    #     multicast = JSONMessage(tokens, data, collapse_key='my.key', dry_run=False)
 
-        # Send push message
-        gcm = GCM(self.android_push_api_key)
-        res = gcm.send(multicast)
+    #     # Send push message
+    #     gcm = GCM(self.android_push_api_key)
+    #     res = gcm.send(multicast)
 
-        # XXX TODO  Retry on failed items
-        # if res.needs_retry():
-        #     # construct new message with only failed regids
-        #     retry_msg = res.retry()
-        #     # you have to wait before attemting again. delay()
-        #     # will tell you how long to wait depending on your
-        #     # current retry counter, starting from 0.
-        #     print "Wait or schedule task after %s seconds" % res.delay(retry)
-        #     # retry += 1 and send retry_msg again
+    #     # XXX TODO  Retry on failed items
+    #     # if res.needs_retry():
+    #     #     # construct new message with only failed regids
+    #     #     retry_msg = res.retry()
+    #     #     # you have to wait before attemting again. delay()
+    #     #     # will tell you how long to wait depending on your
+    #     #     # current retry counter, starting from 0.
+    #     #     print "Wait or schedule task after %s seconds" % res.delay(retry)
+    #     #     # retry += 1 and send retry_msg again
 
-        def has_token_in(status, token):
-            """
-                Safe check that token in contained in a res.<status> attribute
-            """
-            if not hasattr(res, status):
-                return False
-            return token in getattr(res, status)
+    #     def has_token_in(status, token):
+    #         """
+    #             Safe check that token in contained in a res.<status> attribute
+    #         """
+    #         if not hasattr(res, status):
+    #             return False
+    #         return token in getattr(res, status)
 
-        processed_tokens = []
-        for token in tokens:
-            if has_token_in('success', token):
-                processed_tokens.append(('ios', token, None))
+    #     processed_tokens = []
+    #     for token in tokens:
+    #         if has_token_in('success', token):
+    #             processed_tokens.append(('ios', token, None))
 
-            elif has_token_in('unavailable', token):
-                processed_tokens.append(('android', token, 'Unavailable'))
+    #         elif has_token_in('unavailable', token):
+    #             processed_tokens.append(('android', token, 'Unavailable'))
 
-            elif has_token_in('not_registered', token):
-                processed_tokens.append(('android', token, 'Not Registered'))
-                # probably app was uninstalled
-                # self.logger.info(u"[Android] Invalid %s from database" % reg_id)
+    #         elif has_token_in('not_registered', token):
+    #             processed_tokens.append(('android', token, 'Not Registered'))
+    #             # probably app was uninstalled
+    #             # self.logger.info(u"[Android] Invalid %s from database" % reg_id)
 
-            elif has_token_in('failed', token):
-                processed_tokens.append(('android', token, res.failed[token]))
-                # unrecoverably failed, these ID's will not be retried
-                # consult GCM manual for all error codes
-                # self.logger.info(u"[Android] Should remove %s because %s" % (reg_id, err_code))
+    #         elif has_token_in('failed', token):
+    #             processed_tokens.append(('android', token, res.failed[token]))
+    #             # unrecoverably failed, these ID's will not be retried
+    #             # consult GCM manual for all error codes
+    #             # self.logger.info(u"[Android] Should remove %s because %s" % (reg_id, err_code))
 
-            # if token in self.canonical:
-                # Update registration ids
+    #         # if token in self.canonical:
+    #             # Update registration ids
 
-        return processed_tokens
+    #     return processed_tokens
 
 
 __consumer__ = PushConsumer
