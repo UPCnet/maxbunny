@@ -402,32 +402,38 @@ class PushConsumer(BunnyConsumer):
 
         return message_title, message_body
 
-    # def send_firebase_push_notifications(self, tokens, message):
-    #     if not tokens:
-    #         return []
-
-    #     processed_tokens = []
-    #     # Dividir los tokens en grupos de 500
-    #     token_groups = [tokens[i:i+500] for i in range(0, len(tokens), 500)]
-
-    #     for group in token_groups:
-    #         # Crear el mensaje de notificación
-    #         message_title, message_body = self.get_message_object(message)
-    #         message = messaging.MulticastMessage(
-    #             notification=messaging.Notification(
-    #                 title=message_title,
-    #                 body=message_body
-    #             ),
-    #             tokens=group
-    #         )
-
-    #         # Enviar la notificación
-    #         response = messaging.send_multicast(message)
-    #         processed_tokens.append(('firebase', group, response))
-
-    #     return processed_tokens
-
     def send_firebase_push_notifications(self, tokens, message):
+        """ multicast message to all tokens. """
+        if not tokens:
+            return []
+
+        processed_tokens = []
+        # Autocompletar la lista hasta alcanzar 550 tokens
+        # tokens_autocompletados = tokens * (520 //
+        #                                   len(tokens)) + tokens[:520 % len(tokens)]
+
+        token_group = [tokens[i:i+500] for i in range(0, len(tokens), 500)]
+        # token_group = [tokens_autocompletados[i:i+500] for i in range(0, len(tokens_autocompletados), 500)]
+
+        for group in token_group:
+            message_title, message_body = self.get_message_object(message)
+            multicast_message = messaging.MulticastMessage(
+                notification=messaging.Notification(
+                    title=message_title,
+                    body=message_body
+                ),
+                data=message['d'],
+                tokens=group
+            )
+
+            # Enviar la notificación
+            response = messaging.send_multicast(multicast_message)
+
+        processed_tokens.append(('firebase', tokens, response))
+        return processed_tokens
+
+    def send_firebase_push_notifications_one_by_one(self, tokens, message):
+        """ message to all tokens one by one."""
         if not tokens:
             return []
 
