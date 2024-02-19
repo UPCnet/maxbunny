@@ -15,6 +15,7 @@ from maxcarrot.message import RabbitMessage
 from pyfcm import FCMNotification
 from bs4 import BeautifulSoup
 import re
+import json
 
 import firebase_admin
 from firebase_admin import credentials
@@ -419,7 +420,8 @@ class PushConsumer(BunnyConsumer):
         if not tokens:
             return []
 
-        message_no_unicode = self.remove_unicode(message)
+        json_str = json.dumps(message, ensure_ascii=False)
+        message_no_unicode = self.remove_unicode(json_str)
 
         processed_tokens = []
         # Autocompletar la lista hasta alcanzar 550 tokens
