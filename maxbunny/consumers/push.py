@@ -402,10 +402,24 @@ class PushConsumer(BunnyConsumer):
 
         return message_title, message_body
 
+    def remove_unicode(self, d):
+        """Convertir el diccionario a uno sin valores Unicode
+        """
+        if isinstance(d, dict):
+            return {self.remove_unicode(k): self.remove_unicode(v) for k, v in d.iteritems()}
+        elif isinstance(d, list):
+            return [self.remove_unicode(e) for e in d]
+        elif isinstance(d, unicode):
+            return d.encode('utf-8')
+        else:
+            return d
+
     def send_firebase_push_notifications(self, tokens, message):
         """ multicast message to all tokens. """
         if not tokens:
             return []
+
+        message_no_unicode = self.remove_unicode(message)
 
         processed_tokens = []
         # Autocompletar la lista hasta alcanzar 550 tokens
@@ -422,7 +436,7 @@ class PushConsumer(BunnyConsumer):
                     title=message_title,
                     body=message_body
                 ),
-                data=message['d'],
+                data={"message": str(message_no_unicode)},
                 tokens=group
             )
 
