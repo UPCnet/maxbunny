@@ -1,11 +1,13 @@
 Changelog
 =========
 
-5.12 (unreleased)
+5.12 (2024-03-11)
 -----------------
 
-- Nothing changed yet.
-
+* Cambiar comillas simples por dobles y acentos [Alberto Durán]
+* Format message for uShareApp [Alberto Durán]
+* Multicast message in Firebase [Alberto Durán]
+* Comentar forma vieja de push, añadir nueva con bucle token a token [Alberto Durán]
 
 5.11 (2024-01-31)
 -----------------
