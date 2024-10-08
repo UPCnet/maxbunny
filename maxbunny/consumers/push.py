@@ -21,6 +21,8 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import messaging
 
+import requests
+
 
 class PushConsumer(BunnyConsumer):
     """
@@ -43,8 +45,8 @@ class PushConsumer(BunnyConsumer):
         self.firebase_file_path = runner.cloudapis.get(
             'push', 'firebase_file_path')
 
-        cred = credentials.Certificate(self.firebase_file_path)
-        firebase_admin.initialize_app(cred)
+        self.cred = credentials.Certificate(self.firebase_file_path)
+        firebase_admin.initialize_app(self.cred)
 
     def process(self, rabbitpy_message):
         """
@@ -112,11 +114,75 @@ class PushConsumer(BunnyConsumer):
         # processed_tokens += self.send_ios_push_notifications(tokens_by_platform.get('ios', []), push_message.packed)
         # processed_tokens += self.send_android_push_notifications(tokens_by_platform.get('android', []), push_message.packed)
 
-        # Notificaciones push APP uTalk nueva
-        processed_tokens += self.send_firebase_push_notifications(
-            (tokens_by_platform.get('ios', []) +
-             tokens_by_platform.get('android', [])),
-            push_message.packed)
+        # Código para convertir los nuevos tokens de dispositivo ios Ej: '1DA6542D19C96A3D09F04B37CB0BF9EF34AE5D33A05BE6376D005EDE73EB0AC4'
+        # a tokens válidos para firebase 'fpJNtG_mPfY:APA91bHC-8-ZBwYD47qgumKiPyJAb6i6UqdUAjxPF0dhRFymT-E9_b1eKWjVZSV7fXwid1eg0UQPxm5UHrFZRkVQtT406DOYTtKL6tOlH2H61uAXzUzc48xbMLxM5LBRHxKSHAuD0wuH''fpJNtG_mPfY:APA91bHC-8-ZBwYD47qgumKiPyJAb6i6UqdUAjxPF0dhRFymT-E9_b1eKWjVZSV7fXwid1eg0UQPxm5UHrFZRkVQtT406DOYTtKL6tOlH2H61uAXzUzc48xbMLxM5LBRHxKSHAuD0wuH'
+        # Tokens FCM: {u'results': [{u'status': u'OK', u'apns_token': u'1DA6542D19C96A3D09F04B37CB0BF9EF34AE5D33A05BE6376D005EDE73EB0AC4', u'registration_token': u'fpJNtG_mPfY:APA91bHC-8-ZBwYD47qgumKiPyJAb6i6UqdUAjxPF0dhRFymT-E9_b1eKWjVZSV7fXwid1eg0UQPxm5UHrFZRkVQtT406DOYTtKL6tOlH2H61uAXzUzc48xbMLxM5LBRHxKSHAuD0wuH'}
+        tokens_ios = (tokens_by_platform.get('ios', []))
+
+        # Expresión regular para tokens FCM (tienen un formato de dos secciones separadas por ":")
+        fcm_token_pattern = re.compile(r'^[\w-]+:APA91[\w-]+$')
+
+        # Separar tokens en dos listas: tokens FCM y APNS
+        tokens_fcm = [token for token in tokens_ios if fcm_token_pattern.match(token)]
+        tokens_apns = [token for token in tokens_ios
+                       if not fcm_token_pattern.match(token)]
+
+        # Obtener el access_token para poder realizar la petición
+        cred_token = self.cred.get_access_token()
+
+        # tokens_ios = ['FB9A651F4A99FBC5CF1B127584BA4C0F94B2B334426BB7E88FBAB58EE4C45597']
+        # self.logger.info('Tokens IOS: {}'.format(tokens_ios))
+        # self.logger.info('Tokens tokens_apns: {}'.format(tokens_apns))
+        # self.logger.info('Tokens tokens_ios_fcm_antiguos: {}'.format(tokens_fcm))
+
+        # URL de la API
+        url = "https://iid.googleapis.com/iid/v1:batchImport"
+
+        # Encabezados de la solicitud, incluyendo el access token
+        headers = {
+            "Authorization": "Bearer " + cred_token.access_token,
+            "access_token_auth": "true",
+            "Content-Type": "application/json"
+        }
+        # self.logger.info('Tokens FCM: {}'.format(cred_token.access_token))
+
+        # Datos de la solicitud: APNs tokens
+        data = {
+            "application": "es.upcnet.utalk",
+            "sandbox": True,  # True si es para desarrollo, False para producción. Solo funciona con True
+            "apns_tokens": tokens_apns,
+        }
+
+        # Realiza la solicitud POST
+        response = requests.post(url, headers=headers, data=json.dumps(data))
+
+        # Procesa la respuesta
+        if response.status_code == 200:
+            # self.logger.info('Tokens FCM: {}'.format(response.json()))
+            # Extraer la lista de registration_token
+            response_json = response.json()
+            registration_tokens_ios = [result[u'registration_token']
+                                       for result in response_json[u'results']]
+            # # Convertir cada cadena Unicode a una cadena normal
+            # str_tokens_ios = [str(token) for token in registration_tokens_ios]
+            # self.logger.info('Tokens IOS FCM: {}'.format(registration_tokens_ios))
+        else:
+            # self.logger.info('ERROR FCM: {} {}'.format(response.status_code, response.text ))
+            pass
+
+        tokens = (tokens_by_platform.get('android', [])
+                  ) + registration_tokens_ios + tokens_fcm
+        # tokens = (tokens_by_platform.get('ios', []))
+        # tokens = [u'fZC6ROC-SS2j2lR-Uy_wlK:APA91bEk__hei5EiDYXPLL5z425H5v7yxFcH4KcOhBTFgCGn3duvdXsncoFCs68W86VSnXg-yhogepbjabSdmKrYxUNVc864D8UWcdYtKHbgz-gGJrUZ1KxN3yVR7kCWouqaE3Ywd75p']
+        # self.logger.info('Tokens {}'.format(tokens))
+
+        for token in tokens:
+            # Notificaciones push APP uTalk nueva
+            # self.logger.info('Token {} push'.format(token))
+
+            processed_tokens += self.send_firebase_push_notifications_one_by_one(
+                token,
+                push_message.packed)
 
         # If we reach here, push messages had been sent without major failures
         # But may have errors on particular tokens. Let's log successes and failures of
@@ -155,8 +221,8 @@ class PushConsumer(BunnyConsumer):
                 except:
                     pass
 
-                self.logger.info('[{}] RESPONSE {} push : {}'.format(
-                    domain, platform, error))
+                self.logger.info('[{}] RESPONSE {} push : {} - TOKEN : {}'.format(
+                    domain, platform, error, token))
 
         # Log once for all successes
         if succeed:
@@ -416,7 +482,7 @@ class PushConsumer(BunnyConsumer):
             return d
 
     def send_firebase_push_notifications(self, tokens, message):
-        """ multicast message to all tokens. """
+        """ multicast message to all tokens. 08/10/2024 ya no funciona el send_multicast """
         if not tokens:
             return []
 
@@ -448,29 +514,38 @@ class PushConsumer(BunnyConsumer):
         processed_tokens.append(('firebase', tokens, response))
         return processed_tokens
 
-    def send_firebase_push_notifications_one_by_one(self, tokens, message):
+    def send_firebase_push_notifications_one_by_one(self, token, message):
         """ message to all tokens one by one."""
-        if not tokens:
+        if not token:
             return []
 
         processed_tokens = []
 
-        for token in tokens:
-            # Crear el mensaje de notificación
-            message_title, message_body = self.get_message_object(message)
-            msg_push = messaging.Message(
-                notification=messaging.Notification(
-                    title=message_title,
-                    body=message_body
-                ),
-                data=message['d'],
-                token=token
-            )
+        # Crear el mensaje de notificación
+        message_title, message_body = self.get_message_object(message)
+        msg_push = messaging.Message(
+            notification=messaging.Notification(
+                title=message_title,
+                body=message_body
+            ),
+            data=message['d'],
+            token=token
+        )
 
-            # Enviar la notificación
+        # Enviar la notificación
+        try:
             response = messaging.send(msg_push)
+            # self.logger.info('Reponse {} token {}'.format(response, token))
+            processed_tokens.append(('firebase', token, 'OK : ' + str(response)))
+        except messaging.UnregisteredError as e:
+            # Manejo específico para el error UnregisteredError
+            # self.logger.info('Error: El token {} no está registrado: {}'.format(token, str(e)))
+            processed_tokens.append(('firebase', token, 'ERROR : ' + str(e)))
+        except Exception as e:
+            # Manejo general para cualquier otro tipo de error
+            # self.logger.info('Error inesperado al enviar notificación a token {}: {}'.format(token, str(e)))
+            processed_tokens.append(('firebase', token, 'ERROR : ' + str(e)))
 
-        processed_tokens.append(('firebase', tokens, response))
         return processed_tokens
 
     def send_firebase_push_notifications_deprecated(self, tokens, message):
