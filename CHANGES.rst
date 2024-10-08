@@ -1,11 +1,11 @@
 Changelog
 =========
 
-5.13 (unreleased)
+5.13 (2024-10-08)
 -----------------
 
-- Nothing changed yet.
-
+* Merge remote-tracking branch 'origin/develop' [Pilar Marinas]
+* Quitamos el send_multicast que ya no funciona para enviar las push y modificamos los tokens de dispositivo ios nuevo formato a un formato valido para firebase [Pilar Marinas]
 
 5.12 (2024-03-11)
 -----------------
