@@ -109,6 +109,8 @@ class PushConsumer(BunnyConsumer):
                 tokens_by_platform[token_platform].append(token)
 
         processed_tokens = []
+        registration_tokens_ios = []
+        tokens_fcm = []
 
         # Notificaciones push APP uTalk antigua
         # processed_tokens += self.send_ios_push_notifications(tokens_by_platform.get('ios', []), push_message.packed)
@@ -147,9 +149,11 @@ class PushConsumer(BunnyConsumer):
         # self.logger.info('Tokens FCM: {}'.format(cred_token.access_token))
 
         # Datos de la solicitud: APNs tokens
+        # Depenen de "sandbox": false o true genera un token de dispositiu firebase o un altre.
+        # En l'entorn de PRE, només ens funcionava si era true, ara en PRO només funciona si es false
         data = {
             "application": "es.upcnet.utalk",
-            "sandbox": True,  # True si es para desarrollo, False para producción. Solo funciona con True
+            "sandbox": False,  # True en desarrollo entorno PRE, False en producción entorno PRO
             "apns_tokens": tokens_apns,
         }
 
