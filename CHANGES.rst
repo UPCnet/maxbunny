@@ -1,11 +1,10 @@
 Changelog
 =========
 
-5.14 (unreleased)
+5.14 (2024-10-09)
 -----------------
 
-- Nothing changed yet.
-
+* Modificar sandbox a False perque generi un token vàlid firebase a PRO [Pilar Marinas]
 
 5.13 (2024-10-08)
 -----------------
