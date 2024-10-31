@@ -166,7 +166,8 @@ class PushConsumer(BunnyConsumer):
             # Extraer la lista de registration_token
             response_json = response.json()
             registration_tokens_ios = [result[u'registration_token']
-                                       for result in response_json[u'results']]
+                                       for result in response_json[u'results']
+                                       if u'registration_token' in result]
             # # Convertir cada cadena Unicode a una cadena normal
             # str_tokens_ios = [str(token) for token in registration_tokens_ios]
             # self.logger.info('Tokens IOS FCM: {}'.format(registration_tokens_ios))
